@@ -40,15 +40,7 @@ export function Hero() {
             </Link>
           </div>
           <div className="mt-8 flex items-center gap-3">
-            <div className="flex -space-x-3">
-              {["AS", "MK", "RJ"].map((initials) => (
-                <Avatar key={initials} className="h-9 w-9 border-2 border-background">
-                  <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-            </div>
+            
             <p className="text-sm text-muted-foreground">
               10,000+ students are already learning with us
             </p>

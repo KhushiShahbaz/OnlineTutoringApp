@@ -1,0 +1,239 @@
+import nodemailer from "nodemailer";
+
+const CONTACT_RECEIVER_EMAIL =
+  process.env.CONTACT_RECEIVER_EMAIL ?? "globalteachinghub1@gmail.com";
+
+const GMAIL_SMTP_USER = process.env.GMAIL_SMTP_USER;
+
+type NotificationType = "contact" | "demo";
+
+function getTransporter() {
+  const user = process.env.GMAIL_SMTP_USER;
+  const pass = process.env.GMAIL_SMTP_APP_PASSWORD;
+
+  if (!user || !pass) {
+    throw new Error(
+      "Email is not configured: set GMAIL_SMTP_USER and GMAIL_SMTP_APP_PASSWORD in .env.local"
+    );
+  }
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user,
+      pass,
+    },
+  });
+}
+
+export async function sendNotificationEmail({
+  subject,
+  replyTo,
+  type = "contact",
+  lines,
+}: {
+  subject: string;
+  replyTo?: string;
+  type?: NotificationType;
+  lines: { label: string; value: string }[];
+}) {
+  const transporter = getTransporter();
+
+  const isDemo = type === "demo";
+
+  const title = isDemo
+    ? "New Free Demo Request 🎓"
+    : "New Contact Message 📩";
+
+  const description = isDemo
+    ? "A new student has submitted a free demo request."
+    : "Someone has submitted a new message through your website.";
+
+  const sectionTitle = isDemo
+    ? "Student Information"
+    : "Message Details";
+
+  const actionMessage = isDemo
+    ? "Please contact the student to confirm their demo session."
+    : "Please review the message and reply to the sender when convenient.";
+
+  const text = lines
+    .map(({ label, value }) => `${label}: ${value}`)
+    .join("\n");
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(subject)}</title>
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background:#f4f7fb;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#172033;
+">
+
+  <div style="
+    width:100%;
+    padding:40px 15px;
+    box-sizing:border-box;
+  ">
+
+    <div style="
+      max-width:620px;
+      margin:0 auto;
+      background:#ffffff;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid #e5eaf1;
+      box-shadow:0 4px 18px rgba(20,40,80,0.08);
+    ">
+
+      <!-- Header -->
+      <div style="
+        background:#0f766e;
+        padding:28px 32px;
+        color:#ffffff;
+      ">
+
+        <div style="
+          font-size:14px;
+          font-weight:bold;
+          letter-spacing:0.5px;
+          opacity:0.9;
+          margin-bottom:8px;
+        ">
+          GLOBAL TEACHING HUB
+        </div>
+
+        <div style="
+          font-size:26px;
+          line-height:1.3;
+          font-weight:700;
+        ">
+          ${title}
+        </div>
+
+        <div style="
+          font-size:14px;
+          margin-top:8px;
+          opacity:0.9;
+        ">
+          ${description}
+        </div>
+
+      </div>
+
+      <!-- Content -->
+      <div style="padding:30px 32px;">
+
+        <div style="
+          font-size:13px;
+          color:#667085;
+          margin-bottom:18px;
+          text-transform:uppercase;
+          letter-spacing:0.6px;
+          font-weight:600;
+        ">
+          ${sectionTitle}
+        </div>
+
+        ${lines
+          .map(
+            ({ label, value }) => `
+              <div style="
+                margin-bottom:14px;
+                padding:16px 18px;
+                background:#f8fafc;
+                border:1px solid #e8edf3;
+                border-radius:10px;
+              ">
+
+                <div style="
+                  font-size:12px;
+                  color:#667085;
+                  font-weight:600;
+                  margin-bottom:6px;
+                  text-transform:uppercase;
+                  letter-spacing:0.4px;
+                ">
+                  ${escapeHtml(label)}
+                </div>
+
+                <div style="
+                  font-size:15px;
+                  color:#172033;
+                  font-weight:500;
+                  word-break:break-word;
+                ">
+                  ${escapeHtml(value)}
+                </div>
+
+              </div>
+            `
+          )
+          .join("")}
+
+        <!-- Action -->
+        <div style="
+          margin-top:24px;
+          padding:18px;
+          background:#f0fdfa;
+          border:1px solid #ccfbf1;
+          border-radius:10px;
+          color:#115e59;
+          font-size:14px;
+          line-height:1.6;
+        ">
+          <strong>Next step:</strong><br />
+          ${actionMessage}
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div style="
+        border-top:1px solid #edf0f4;
+        padding:20px 32px;
+        background:#fafbfc;
+        color:#98a2b3;
+        font-size:12px;
+        line-height:1.6;
+      ">
+
+        This notification was automatically generated from
+        <strong style="color:#667085;">Global Teaching Hub</strong>.
+
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
+`;
+
+  await transporter.sendMail({
+    from: `"Global Teaching Hub" <${GMAIL_SMTP_USER}>`,
+    to: CONTACT_RECEIVER_EMAIL,
+    ...(replyTo ? { replyTo } : {}),
+    subject,
+    text,
+    html,
+  });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

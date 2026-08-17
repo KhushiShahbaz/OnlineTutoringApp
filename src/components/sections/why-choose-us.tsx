@@ -25,7 +25,7 @@ export function WhyChooseUs() {
     <section className="bg-secondary/50 py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-2xl font-bold text-foreground sm:text-3xl">
-          Why Choose EduSphere Academy?
+          Why Choose Global Teaching Hub?
         </h2>
 
         <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-4 lg:grid-cols-8">

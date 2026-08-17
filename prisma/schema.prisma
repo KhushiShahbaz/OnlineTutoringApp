@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum StudentLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InvoiceStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  teacher Teacher?
+  student Student?
+}
+
+model Teacher {
+  id         String @id @default(cuid())
+  userId     String @unique
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseSlug String
+
+  students Student[]
+}
+
+model Student {
+  id         String        @id @default(cuid())
+  userId     String?       @unique
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name       String
+  email      String        @unique
+  phone      String?
+  courseSlug String?
+  teacherId  String?
+  teacher    Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  level      StudentLevel  @default(BEGINNER)
+  progress   Int           @default(0)
+  status     StudentStatus @default(ACTIVE)
+  joined     DateTime      @default(now())
+
+  notes         ProgressNote[]
+  invoices      Invoice[]
+  notifications Notification[]
+}
+
+model ProgressNote {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  note      String
+  date      DateTime @default(now())
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  studentId   String
+  student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  description String
+  amount      String
+  date        DateTime      @default(now())
+  status      InvoiceStatus @default(PENDING)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  message   String
+  date      DateTime @default(now())
+}

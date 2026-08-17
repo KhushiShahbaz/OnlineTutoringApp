@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EduSphere Academy — Learn from Expert Teachers, Anytime, Anywhere",
+  title: "Global Teaching Hub — Learn from Expert Teachers, Anytime, Anywhere",
   description:
     "Live one-to-one classes, experienced teachers, flexible schedules, and personalized learning for students from Pakistan and around the world.",
 };

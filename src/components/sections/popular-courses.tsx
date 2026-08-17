@@ -1,31 +1,6 @@
 import Link from "next/link";
-import {
-  BookOpen,
-  FlaskConical,
-  Globe2,
-  BookMarked,
-  Landmark,
-  MessageCircle,
-  Award,
-  ClipboardList,
-  Monitor,
-  PenTool,
-} from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-const COURSES = [
-  { icon: BookOpen, name: "Matric", color: "text-emerald-600 bg-emerald-100" },
-  { icon: FlaskConical, name: "FSc", color: "text-blue-600 bg-blue-100" },
-  { icon: Globe2, name: "O Levels", color: "text-violet-600 bg-violet-100" },
-  { icon: BookMarked, name: "A Levels", color: "text-rose-600 bg-rose-100" },
-  { icon: Landmark, name: "Quran with Tajweed", color: "text-teal-600 bg-teal-100" },
-  { icon: MessageCircle, name: "Spoken English", color: "text-orange-600 bg-orange-100" },
-  { icon: Award, name: "IELTS", color: "text-red-600 bg-red-100" },
-  { icon: ClipboardList, name: "SAT", color: "text-sky-600 bg-sky-100" },
-  { icon: Monitor, name: "Computer Courses", color: "text-indigo-600 bg-indigo-100" },
-  { icon: PenTool, name: "Graphic Designing", color: "text-amber-600 bg-amber-100" },
-];
+import { COURSES } from "@/lib/courses";
 
 export function PopularCourses() {
   return (
@@ -40,28 +15,26 @@ export function PopularCourses() {
         </p>
       </div>
 
-      <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {COURSES.map(({ icon: Icon, name, color }) => (
-          <Card
-            key={name}
-            className="border-none bg-secondary/40 shadow-none transition hover:-translate-y-1 hover:shadow-md"
-          >
-            <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
-              <span
-                className={`flex h-12 w-12 items-center justify-center rounded-xl ${color}`}
-              >
-                <Icon className="h-6 w-6" />
-              </span>
-              <p className="text-sm font-semibold text-foreground">{name}</p>
-            </CardContent>
-          </Card>
+      <div className="mt-12 flex flex-wrap justify-center gap-8">
+        {COURSES.map(({ slug, icon: Icon, name, color, description }) => (
+          <Link key={slug} href={`/courses/${slug}`} className="block">
+            <Card className="w-40 border-none bg-secondary/40 shadow-none transition hover:-translate-y-1 hover:shadow-md sm:w-60">
+              <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
+                <span
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl ${color}`}
+                >
+                  <Icon className="h-6 w-6" />
+                </span>
+                <p className="text-sm font-semibold text-foreground">{name}</p>
+                {description && (
+                  <p className="text-xs text-muted-foreground">
+                    {description}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
         ))}
-      </div>
-
-      <div className="mt-10 flex justify-center">
-        <Link href="/courses" className={buttonVariants({ size: "lg" })}>
-          View All Courses
-        </Link>
       </div>
     </section>
   );

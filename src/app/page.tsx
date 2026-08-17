@@ -3,10 +3,8 @@ import { Footer } from "@/components/layout/footer";
 import { Hero } from "@/components/sections/hero";
 import { PopularCourses } from "@/components/sections/popular-courses";
 import { WhyChooseUs } from "@/components/sections/why-choose-us";
-import { Teachers } from "@/components/sections/teachers";
 import { Testimonials } from "@/components/sections/testimonials";
 import { HowItWorks } from "@/components/sections/how-it-works";
-import { Pricing } from "@/components/sections/pricing";
 import { AppDownload } from "@/components/sections/app-download";
 
 export default function Home() {
@@ -17,11 +15,9 @@ export default function Home() {
         <Hero />
         <PopularCourses />
         <WhyChooseUs />
-        <Teachers />
         <Testimonials />
         <HowItWorks />
-        <Pricing />
-        <AppDownload />
+        {/* <AppDownload /> */}
       </main>
       <Footer />
     </>
