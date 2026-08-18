@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   description: "Explore the courses offered by Global Teaching Hub.",
 };
 
+// Courses are admin-managed and must always reflect live data, not a
+// snapshot frozen at build time.
+export const dynamic = "force-dynamic";
+
 export default async function CoursesPage() {
   const courses = await prisma.course.findMany({ orderBy: { createdAt: "asc" } });
 

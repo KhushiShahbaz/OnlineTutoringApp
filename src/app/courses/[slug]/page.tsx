@@ -13,6 +13,10 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+// Courses are admin-managed and must always reflect live data, not a
+// snapshot frozen at build time.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {

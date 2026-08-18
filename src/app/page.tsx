@@ -7,6 +7,10 @@ import { Testimonials } from "@/components/sections/testimonials";
 import { HowItWorks } from "@/components/sections/how-it-works";
 import { AppDownload } from "@/components/sections/app-download";
 
+// Courses are admin-managed and must always reflect live data, not a
+// snapshot frozen at build time.
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <>
