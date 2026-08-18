@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { COURSES } from "@/lib/courses";
 import {
   requireEmail,
   requirePhone,
@@ -27,7 +26,7 @@ function validate(form: FormState) {
   return errors;
 }
 
-export function FreeTrialForm() {
+export function FreeTrialForm({ courses }: { courses: string[] }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -159,7 +158,7 @@ export function FreeTrialForm() {
               <option value="" disabled>
                 Select a course
               </option>
-              {COURSES.map(({ name }) => (
+              {courses.map((name) => (
                 <option key={name} value={name}>
                   {name}
                 </option>

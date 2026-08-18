@@ -4,14 +4,17 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { COURSES } from "@/lib/courses";
+import { prisma } from "@/lib/prisma";
+import { getIconComponent } from "@/lib/course-icons";
 
 export const metadata: Metadata = {
   title: "Courses — Global Teaching Hub",
   description: "Explore the courses offered by Global Teaching Hub.",
 };
 
-export default function CoursesPage() {
+export default async function CoursesPage() {
+  const courses = await prisma.course.findMany({ orderBy: { createdAt: "asc" } });
+
   return (
     <>
       <Header />
@@ -27,26 +30,37 @@ export default function CoursesPage() {
             </p>
           </div>
 
+          {courses.length === 0 && (
+            <p className="mt-12 text-center text-muted-foreground">
+              No courses are available right now — check back soon.
+            </p>
+          )}
+
           <div className="mx-auto mt-12 grid max-w-4xl gap-6 sm:grid-cols-2">
-            {COURSES.map(({ slug, icon: Icon, name, color, description }) => (
-                <Card className="h-full border-none bg-secondary/40 shadow-none transition hover:-translate-y-1 hover:shadow-md">
-                  <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-                    <span
-                      className={`flex h-14 w-14 items-center justify-center rounded-xl ${color}`}
-                    >
-                      <Icon className="h-7 w-7" />
-                    </span>
-                    <p className="text-lg font-semibold text-foreground">
-                      {name}
-                    </p>
-                    {description && (
-                      <p className="text-sm text-muted-foreground">
-                        {description}
+            {courses.map(({ slug, icon, name, color, description }) => {
+              const Icon = getIconComponent(icon);
+              return (
+                <Link key={slug} href={`/courses/${slug}`} className="block">
+                  <Card className="h-full border-none bg-secondary/40 shadow-none transition hover:-translate-y-1 hover:shadow-md">
+                    <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+                      <span
+                        className={`flex h-14 w-14 items-center justify-center rounded-xl ${color}`}
+                      >
+                        <Icon className="h-7 w-7" />
+                      </span>
+                      <p className="text-lg font-semibold text-foreground">
+                        {name}
                       </p>
-                    )}
-                  </CardContent>
-                </Card>
-            ))}
+                      {description && (
+                        <p className="text-sm text-muted-foreground">
+                          {description}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
 
           <div className="mt-12 flex justify-center">

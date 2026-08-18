@@ -42,29 +42,45 @@ model User {
   student Student?
 }
 
+model Course {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  summary     String
+  topics      String[]
+  color       String   @default("text-teal-600 bg-teal-100")
+  icon        String   @default("BookOpen")
+  createdAt   DateTime @default(now())
+
+  teachers Teacher[]
+  students Student[]
+}
+
 model Teacher {
-  id         String @id @default(cuid())
-  userId     String @unique
-  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseSlug String
+  id       String @id @default(cuid())
+  userId   String @unique
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
 
   students Student[]
 }
 
 model Student {
-  id         String        @id @default(cuid())
-  userId     String?       @unique
-  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  name       String
-  email      String        @unique
-  phone      String?
-  courseSlug String?
-  teacherId  String?
-  teacher    Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  level      StudentLevel  @default(BEGINNER)
-  progress   Int           @default(0)
-  status     StudentStatus @default(ACTIVE)
-  joined     DateTime      @default(now())
+  id        String        @id @default(cuid())
+  userId    String?       @unique
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  email     String        @unique
+  phone     String?
+  courses   Course[]
+  teacherId String?
+  teacher   Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  level     StudentLevel  @default(BEGINNER)
+  progress  Int           @default(0)
+  status    StudentStatus @default(ACTIVE)
+  joined    DateTime      @default(now())
 
   notes         ProgressNote[]
   invoices      Invoice[]

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, Mail, MapPin, Phone } from "lucide-react";
+import Image from "next/image";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -24,7 +24,7 @@ const SUPPORT = [
   { label: "Contact Us", href: "/contact" },
   { label: "Help Center", href: "/faq" },
   { label: "Live Chat", href: "/contact" },
-  { label: "Staff Login", href: "/admin/login" },
+  // { label: "Staff Login", href: "/admin/login" },
 ];
 
 export function Footer() {
@@ -33,13 +33,14 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-16 sm:grid-cols-2 sm:px-6 lg:grid-cols-5 lg:px-8">
         <div className="sm:col-span-2 lg:col-span-2">
           <Link href="/" className="flex items-center gap-2 font-bold text-background">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="h-5 w-5" />
-            </span>
-            <span className="flex flex-col leading-none">
-              <span>Global Teaching Hub</span>
-             
-            </span>
+            <Image
+              src="/logo-icon.png"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 object-contain"
+            />
+            <span>Global Teaching Hub</span>
           </Link>
           <p className="mt-4 max-w-xs text-sm text-background/70">
             Empowering students through quality education. Learn, grow, and

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { sendNotificationEmail } from "@/lib/mailer";
+import { prisma } from "@/lib/prisma";
 import {
   requireEmail,
   requirePhone,
   requireString,
   type FieldErrors,
 } from "@/lib/validation";
-import { COURSES } from "@/lib/courses";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -30,8 +30,9 @@ export async function POST(request: Request) {
     max: 100,
   });
 
-  if (course && !COURSES.some((c) => c.name === course)) {
-    errors.course = "Select a valid course.";
+  if (course) {
+    const match = await prisma.course.findFirst({ where: { name: course } });
+    if (!match) errors.course = "Select a valid course.";
   }
 
   if (Object.keys(errors).length > 0) {

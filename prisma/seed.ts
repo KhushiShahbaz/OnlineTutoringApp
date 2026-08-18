@@ -11,6 +11,36 @@ async function hash(password: string) {
 }
 
 async function main() {
+  const quran = await prisma.course.upsert({
+    where: { slug: "quran-with-tajweed" },
+    update: {},
+    create: {
+      slug: "quran-with-tajweed",
+      name: "Quran with Tajweed",
+      description: "Tajweed, Translation, Tafseer",
+      summary:
+        "Learn to recite the Quran with correct Tajweed rules, understand its meaning through Translation, and deepen your understanding with Tafseer — taught one-to-one by experienced, qualified teachers.",
+      topics: ["Tajweed", "Translation", "Tafseer"],
+      color: "text-teal-600 bg-teal-100",
+      icon: "Landmark",
+    },
+  });
+
+  const computer = await prisma.course.upsert({
+    where: { slug: "computer-courses" },
+    update: {},
+    create: {
+      slug: "computer-courses",
+      name: "Computer Courses",
+      description: "MS Word, PowerPoint, Programming Languages",
+      summary:
+        "Build practical computer skills from the ground up — from everyday office tools like MS Word and PowerPoint to the fundamentals of programming languages.",
+      topics: ["MS Word", "PowerPoint", "Programming Languages"],
+      color: "text-indigo-600 bg-indigo-100",
+      icon: "Monitor",
+    },
+  });
+
   const adminPassword = await hash("Admin@12345");
   await prisma.user.upsert({
     where: { email: "admin@edusphereacademy.com" },
@@ -33,7 +63,7 @@ async function main() {
       email: "hafsa.siddiqui@edusphereacademy.com",
       passwordHash: teacherPassword,
       role: "TEACHER",
-      teacher: { create: { courseSlug: "quran-with-tajweed" } },
+      teacher: { create: { courseId: quran.id } },
     },
     include: { teacher: true },
   });
@@ -46,7 +76,7 @@ async function main() {
       email: "bilal.ahmed@edusphereacademy.com",
       passwordHash: teacherPassword,
       role: "TEACHER",
-      teacher: { create: { courseSlug: "computer-courses" } },
+      teacher: { create: { courseId: computer.id } },
     },
     include: { teacher: true },
   });
@@ -69,7 +99,7 @@ async function main() {
           name: "Ali Raza",
           email: "ali.raza@example.com",
           phone: "+92 300 1234567",
-          courseSlug: "quran-with-tajweed",
+          courses: { connect: [{ id: quran.id }] },
           teacherId: hafsaTeacherId,
           level: "INTERMEDIATE",
           progress: 65,
@@ -112,7 +142,7 @@ async function main() {
     create: {
       name: "Mahnoor Ali",
       email: "mahnoor.ali@example.com",
-      courseSlug: "quran-with-tajweed",
+      courses: { connect: [{ id: quran.id }, { id: computer.id }] },
       teacherId: hafsaTeacherId,
       level: "BEGINNER",
       progress: 30,
@@ -126,7 +156,7 @@ async function main() {
     create: {
       name: "Hassan Raza",
       email: "hassan.raza@example.com",
-      courseSlug: "computer-courses",
+      courses: { connect: [{ id: computer.id }] },
       teacherId: bilalTeacherId,
       level: "ADVANCED",
       progress: 85,
@@ -141,7 +171,7 @@ async function main() {
     create: {
       name: "Areeba Khan",
       email: "areeba.khan@example.com",
-      courseSlug: "computer-courses",
+      courses: { connect: [{ id: computer.id }] },
       teacherId: null,
       level: "BEGINNER",
       progress: 10,

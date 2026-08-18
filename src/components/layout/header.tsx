@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { GraduationCap, Menu } from "lucide-react";
+import Image from "next/image";
+import { Menu } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -24,13 +25,15 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex flex-1 items-center">
           <Link href="/" className="flex items-center gap-2 font-bold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="h-5 w-5" />
-            </span>
-            <span className="flex flex-col leading-none">
-              <span className="text-base text-foreground">Global Teaching Hub</span>
-              
-            </span>
+            <Image
+              src="/logo-icon.png"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 object-contain"
+              priority
+            />
+            <span className="text-base text-foreground">Global Teaching Hub</span>
           </Link>
         </div>
 
@@ -66,9 +69,13 @@ export function Header() {
             <SheetContent side="right" className="w-72">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <GraduationCap className="h-4 w-4" />
-                  </span>
+                  <Image
+                    src="/logo-icon.png"
+                    alt=""
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 object-contain"
+                  />
                   Global Teaching Hub
                 </SheetTitle>
               </SheetHeader>

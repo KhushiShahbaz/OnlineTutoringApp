@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { COURSES } from "@/lib/courses";
 import { requireEmail, requireString, type FieldErrors } from "@/lib/validation";
 
 export async function GET() {
@@ -9,7 +8,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const students = await prisma.student.findMany({
-    include: { teacher: { include: { user: true } } },
+    include: { teacher: { include: { user: true } }, courses: true },
     orderBy: { joined: "desc" },
   });
 
@@ -18,7 +17,8 @@ export async function GET() {
       id: s.id,
       name: s.name,
       email: s.email,
-      courseSlug: s.courseSlug,
+      courseIds: s.courses.map((c) => c.id),
+      courseNames: s.courses.map((c) => c.name),
       teacherId: s.teacherId,
       teacherName: s.teacher?.user.name ?? null,
       level: s.level,
@@ -48,22 +48,29 @@ export async function POST(request: Request) {
     max: 100,
   });
   const email = requireEmail(errors, "email", data.email);
-  const courseSlug =
-    typeof data.courseSlug === "string" && data.courseSlug ? data.courseSlug : null;
+  const courseIds = Array.isArray(data.courseIds)
+    ? data.courseIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
   const teacherId =
     typeof data.teacherId === "string" && data.teacherId ? data.teacherId : null;
-  const level =
-    typeof data.level === "string" ? data.level : "BEGINNER";
+  const level = typeof data.level === "string" ? data.level : "BEGINNER";
 
-  if (courseSlug && !COURSES.some((c) => c.slug === courseSlug)) {
-    errors.courseSlug = "Select a valid course.";
-  }
   if (!["BEGINNER", "INTERMEDIATE", "ADVANCED"].includes(level)) {
     errors.level = "Select a valid level.";
   }
 
   if (Object.keys(errors).length > 0) {
     return NextResponse.json({ errors }, { status: 422 });
+  }
+
+  if (courseIds.length > 0) {
+    const validCount = await prisma.course.count({ where: { id: { in: courseIds } } });
+    if (validCount !== courseIds.length) {
+      return NextResponse.json(
+        { errors: { courseIds: "Select valid courses." } },
+        { status: 422 }
+      );
+    }
   }
 
   const existing = await prisma.student.findUnique({ where: { email } });
@@ -78,13 +85,20 @@ export async function POST(request: Request) {
     data: {
       name,
       email,
-      courseSlug,
+      courses: { connect: courseIds.map((id) => ({ id })) },
       teacherId,
       level: level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
       progress: 0,
       status: "ACTIVE",
     },
+    include: { courses: true },
   });
 
-  return NextResponse.json({ student });
+  return NextResponse.json({
+    student: {
+      ...student,
+      courseIds: student.courses.map((c) => c.id),
+      courseNames: student.courses.map((c) => c.name),
+    },
+  });
 }

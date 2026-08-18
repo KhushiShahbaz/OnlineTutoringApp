@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getCourseBySlug } from "@/lib/courses";
+import { getIconComponent } from "@/lib/course-icons";
 
 type Invoice = { id: string; description: string; amount: string; date: string; status: string };
 type Notification = { id: string; message: string; date: string };
+type CourseSummary = { id: string; slug: string; name: string; color: string; icon: string };
 type StudentMe = {
   name: string;
-  courseSlug: string | null;
+  courses: CourseSummary[];
   progress: number;
   invoices: Invoice[];
   notifications: Notification[];
@@ -42,8 +43,6 @@ export default function DashboardPage() {
     return <p className="text-sm text-muted-foreground">Loading...</p>;
   }
 
-  const course = student?.courseSlug ? getCourseBySlug(student.courseSlug) : undefined;
-
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -56,42 +55,40 @@ export default function DashboardPage() {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-foreground">
-          My Enrollment
-        </h2>
-        {!course && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">
+            My Enrollments
+          </h2>
+          {student && student.courses.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              Overall progress: {student.progress}%
+            </span>
+          )}
+        </div>
+        {(!student || student.courses.length === 0) && (
           <p className="mt-3 text-sm text-muted-foreground">
             You&apos;re not enrolled in a course yet.
           </p>
         )}
-        {course && (
+        {student && student.courses.length > 0 && (
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Card className="border-none bg-background shadow-none">
-              <CardContent className="flex flex-col gap-4 p-6">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${course.color}`}
-                  >
-                    <course.icon className="h-5 w-5" />
-                  </span>
-                  <p className="text-sm font-semibold text-foreground">
-                    {course.name}
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Progress</span>
-                    <span>{student?.progress}%</span>
-                  </div>
-                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${student?.progress}%` }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {student.courses.map((course) => {
+              const Icon = getIconComponent(course.icon);
+              return (
+                <Card key={course.id} className="border-none bg-background shadow-none">
+                  <CardContent className="flex items-center gap-3 p-6">
+                    <span
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg ${course.color}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <p className="text-sm font-semibold text-foreground">
+                      {course.name}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

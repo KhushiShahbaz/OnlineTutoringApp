@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
-import { COURSES } from "@/lib/courses";
 import {
   requireEmail,
   requirePassword,
@@ -15,7 +14,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const teachers = await prisma.teacher.findMany({
-    include: { user: true, _count: { select: { students: true } } },
+    include: { user: true, course: true, _count: { select: { students: true } } },
     orderBy: { user: { name: "asc" } },
   });
 
@@ -24,7 +23,8 @@ export async function GET() {
       id: t.id,
       name: t.user.name,
       email: t.user.email,
-      courseSlug: t.courseSlug,
+      courseId: t.courseId,
+      courseName: t.course.name,
       studentCount: t._count.students,
     })),
   });
@@ -50,10 +50,12 @@ export async function POST(request: Request) {
   });
   const email = requireEmail(errors, "email", data.email);
   const password = requirePassword(errors, "password", data.password);
-  const courseSlug = typeof data.courseSlug === "string" ? data.courseSlug : "";
+  const courseId = typeof data.courseId === "string" ? data.courseId : "";
 
-  if (!courseSlug || !COURSES.some((c) => c.slug === courseSlug)) {
-    errors.courseSlug = "Select a valid course.";
+  if (!courseId) {
+    errors.courseId = "Select a course.";
+  } else if (!(await prisma.course.findUnique({ where: { id: courseId } }))) {
+    errors.courseId = "Select a valid course.";
   }
 
   if (Object.keys(errors).length > 0) {
@@ -76,9 +78,9 @@ export async function POST(request: Request) {
       email,
       passwordHash,
       role: "TEACHER",
-      teacher: { create: { courseSlug } },
+      teacher: { create: { courseId } },
     },
-    include: { teacher: true },
+    include: { teacher: { include: { course: true } } },
   });
 
   return NextResponse.json({
@@ -86,7 +88,8 @@ export async function POST(request: Request) {
       id: user.teacher!.id,
       name: user.name,
       email: user.email,
-      courseSlug: user.teacher!.courseSlug,
+      courseId: user.teacher!.courseId,
+      courseName: user.teacher!.course.name,
       studentCount: 0,
     },
   });

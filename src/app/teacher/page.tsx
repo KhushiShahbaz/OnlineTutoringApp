@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { BookOpen, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { getCourseBySlug } from "@/lib/courses";
 
-type TeacherInfo = { name: string; courseSlug: string };
+type TeacherInfo = { name: string; courseName: string };
 type Student = { progress: number };
 
 export default function TeacherOverviewPage() {
@@ -26,7 +27,27 @@ export default function TeacherOverviewPage() {
   }, []);
 
   if (!students) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return (
+      <div className="flex flex-col gap-8">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Welcome</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here&apos;s an overview of your students.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="border-none bg-background shadow-none">
+              <CardContent className="p-6">
+                <div className="h-9 w-9 animate-pulse rounded-lg bg-secondary/70" />
+                <div className="mt-4 h-7 w-12 animate-pulse rounded bg-secondary/70" />
+                <div className="mt-2 h-3 w-20 animate-pulse rounded bg-secondary/70" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   const avgProgress = students.length
@@ -34,12 +55,29 @@ export default function TeacherOverviewPage() {
         students.reduce((sum, s) => sum + s.progress, 0) / students.length
       )
     : 0;
-  const course = teacher ? getCourseBySlug(teacher.courseSlug) : undefined;
 
   const stats = [
-    { label: "My Students", value: students.length },
-    { label: "Avg. Progress", value: `${avgProgress}%` },
-    { label: "Course", value: course?.name ?? "—" },
+    {
+      label: "My Students",
+      value: students.length,
+      icon: Users,
+      href: "/teacher/students",
+      color: "text-teal-600 bg-teal-100",
+    },
+    {
+      label: "Avg. Progress",
+      value: `${avgProgress}%`,
+      icon: TrendingUp,
+      href: "/teacher/students",
+      color: "text-rose-600 bg-rose-100",
+    },
+    {
+      label: "Course",
+      value: teacher?.courseName ?? "—",
+      icon: BookOpen,
+      href: "/teacher/students",
+      color: "text-indigo-600 bg-indigo-100",
+    },
   ];
 
   return (
@@ -54,17 +92,22 @@ export default function TeacherOverviewPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="border-none bg-background shadow-none">
-            <CardContent className="p-6">
-              <p className="text-2xl font-bold text-foreground">
-                {stat.value}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {stat.label}
-              </p>
-            </CardContent>
-          </Card>
+        {stats.map(({ label, value, icon: Icon, href, color }) => (
+          <Link key={label} href={href} className="block">
+            <Card className="h-full border-none bg-background shadow-none transition hover:-translate-y-1 hover:shadow-md">
+              <CardContent className="flex flex-col gap-3 p-6">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}
+                >
+                  <Icon className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>

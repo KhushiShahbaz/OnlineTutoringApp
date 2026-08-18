@@ -2,13 +2,19 @@ import type { Metadata } from "next";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { FreeTrialForm } from "@/components/sections/free-trial-form";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Book a Free Demo — Global Teaching Hub",
   description: "Book a free demo class with Global Teaching Hub.",
 };
 
-export default function FreeTrialPage() {
+export default async function FreeTrialPage() {
+  const courses = await prisma.course.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { name: true },
+  });
+
   return (
     <>
       <Header />
@@ -25,7 +31,7 @@ export default function FreeTrialPage() {
           </div>
 
           <div className="mt-12">
-            <FreeTrialForm />
+            <FreeTrialForm courses={courses.map((c) => c.name)} />
           </div>
         </section>
       </main>

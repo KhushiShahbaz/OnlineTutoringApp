@@ -11,6 +11,7 @@ export async function GET() {
     where: { userId: auth.sub },
     include: {
       teacher: { include: { user: true } },
+      courses: true,
       invoices: { orderBy: { date: "desc" } },
       notifications: { orderBy: { date: "desc" } },
     },
@@ -26,7 +27,13 @@ export async function GET() {
       name: student.name,
       email: student.email,
       phone: student.phone,
-      courseSlug: student.courseSlug,
+      courses: student.courses.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        color: c.color,
+        icon: c.icon,
+      })),
       teacherName: student.teacher?.user.name ?? null,
       level: student.level,
       progress: student.progress,
