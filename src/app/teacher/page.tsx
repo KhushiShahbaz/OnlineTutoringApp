@@ -1,27 +1,43 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminData } from "@/lib/admin-store";
 import { getCourseBySlug } from "@/lib/courses";
-import { getStaffSession } from "@/lib/staff-session";
+
+type TeacherInfo = { name: string; courseSlug: string };
+type Student = { progress: number };
 
 export default function TeacherOverviewPage() {
-  const session = getStaffSession();
-  const teacherId = session?.role === "teacher" ? session.teacherId : null;
-  const { students, teachers } = useAdminData();
+  const [teacher, setTeacher] = useState<TeacherInfo | null>(null);
+  const [students, setStudents] = useState<Student[] | null>(null);
 
-  const teacher = teachers.find((t) => t.id === teacherId);
-  const myStudents = students.filter((s) => s.teacherId === teacherId);
-  const avgProgress = myStudents.length
+  useEffect(() => {
+    let active = true;
+    fetch("/api/teacher/students")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!active) return;
+        setTeacher(data.teacher ?? null);
+        setStudents(data.students ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!students) {
+    return <p className="text-sm text-muted-foreground">Loading...</p>;
+  }
+
+  const avgProgress = students.length
     ? Math.round(
-        myStudents.reduce((sum, s) => sum + s.progress, 0) /
-          myStudents.length
+        students.reduce((sum, s) => sum + s.progress, 0) / students.length
       )
     : 0;
   const course = teacher ? getCourseBySlug(teacher.courseSlug) : undefined;
 
   const stats = [
-    { label: "My Students", value: myStudents.length },
+    { label: "My Students", value: students.length },
     { label: "Avg. Progress", value: `${avgProgress}%` },
     { label: "Course", value: course?.name ?? "—" },
   ];

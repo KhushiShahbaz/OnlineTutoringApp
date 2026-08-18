@@ -47,14 +47,14 @@ export function Header() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-3">
-          {/* <div className="hidden items-center gap-3 sm:flex">
+          <div className="hidden items-center gap-3 sm:flex">
             <Link href="/login" className={buttonVariants({ variant: "outline" })}>
               Login
             </Link>
             <Link href="/register" className={buttonVariants()}>
               Sign Up
             </Link>
-          </div> */}
+          </div>
 
           <Sheet>
             <SheetTrigger
@@ -82,7 +82,7 @@ export function Header() {
                     {link.label}
                   </Link>
                 ))}
-                {/* <div className="mt-4 flex flex-col gap-2">
+                <div className="mt-4 flex flex-col gap-2">
                   <Link
                     href="/login"
                     className={buttonVariants({ variant: "outline" })}
@@ -92,7 +92,7 @@ export function Header() {
                   <Link href="/register" className={buttonVariants()}>
                     Sign Up
                   </Link>
-                </div> */}
+                </div>
               </nav>
             </SheetContent>
           </Sheet>

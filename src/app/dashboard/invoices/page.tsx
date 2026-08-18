@@ -1,19 +1,38 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { INVOICES } from "@/lib/student";
 
-export const metadata: Metadata = {
-  title: "Invoices — Global Teaching Hub",
+type Invoice = {
+  id: string;
+  description: string;
+  amount: string;
+  date: string;
+  status: string;
 };
 
 const STATUS_VARIANT = {
-  Paid: "default",
-  Pending: "outline",
-  Overdue: "destructive",
+  PAID: "default",
+  PENDING: "outline",
+  OVERDUE: "destructive",
 } as const;
 
 export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/student/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (active) setInvoices(data.student?.invoices ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -29,7 +48,6 @@ export default function InvoicesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-6 py-3 font-medium">Invoice</th>
                   <th className="px-6 py-3 font-medium">Description</th>
                   <th className="px-6 py-3 font-medium">Amount</th>
                   <th className="px-6 py-3 font-medium">Date</th>
@@ -37,11 +55,22 @@ export default function InvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {INVOICES.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td className="px-6 py-4 font-medium text-foreground">
-                      {invoice.id}
+                {invoices === null && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-6 text-center text-muted-foreground">
+                      Loading...
                     </td>
+                  </tr>
+                )}
+                {invoices?.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-6 text-center text-muted-foreground">
+                      No invoices yet.
+                    </td>
+                  </tr>
+                )}
+                {invoices?.map((invoice) => (
+                  <tr key={invoice.id}>
                     <td className="px-6 py-4 text-muted-foreground">
                       {invoice.description}
                     </td>
@@ -49,10 +78,14 @@ export default function InvoicesPage() {
                       {invoice.amount}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {invoice.date}
+                      {new Date(invoice.date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant={STATUS_VARIANT[invoice.status]}>
+                      <Badge
+                        variant={
+                          STATUS_VARIANT[invoice.status as keyof typeof STATUS_VARIANT]
+                        }
+                      >
                         {invoice.status}
                       </Badge>
                     </td>

@@ -29,7 +29,6 @@ export default function CoursesPage() {
 
           <div className="mx-auto mt-12 grid max-w-4xl gap-6 sm:grid-cols-2">
             {COURSES.map(({ slug, icon: Icon, name, color, description }) => (
-              <Link key={slug} href={`/courses/${slug}`} className="block">
                 <Card className="h-full border-none bg-secondary/40 shadow-none transition hover:-translate-y-1 hover:shadow-md">
                   <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
                     <span
@@ -47,7 +46,6 @@ export default function CoursesPage() {
                     )}
                   </CardContent>
                 </Card>
-              </Link>
             ))}
           </div>
 

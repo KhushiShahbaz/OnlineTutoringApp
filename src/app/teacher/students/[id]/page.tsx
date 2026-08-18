@@ -1,25 +1,42 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAdminData } from "@/lib/admin-store";
-import { getStaffSession } from "@/lib/staff-session";
-import type { Student, StudentLevel } from "@/lib/admin-data";
+
+type Note = { id: string; note: string; date: string };
+type StudentDetail = {
+  id: string;
+  name: string;
+  email: string;
+  level: string;
+  progress: number;
+  notes: Note[];
+};
 
 export default function TeacherStudentProgressPage() {
   const { id } = useParams<{ id: string }>();
-  const session = getStaffSession();
-  const teacherId = session?.role === "teacher" ? session.teacherId : null;
-  const { students } = useAdminData();
+  const [student, setStudent] = useState<StudentDetail | null | undefined>(undefined);
 
-  const student = students.find(
-    (s) => s.id === id && s.teacherId === teacherId
-  );
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/teacher/students/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (active) setStudent(data?.student ?? null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (student === undefined) {
+    return <p className="text-sm text-muted-foreground">Loading...</p>;
+  }
 
   if (!student) {
     return (
@@ -37,25 +54,46 @@ export default function TeacherStudentProgressPage() {
     );
   }
 
-  return <ProgressEditor key={student.id} student={student} />;
+  return <ProgressEditor student={student} />;
 }
 
-function ProgressEditor({ student }: { student: Student }) {
-  const { updateStudent, addProgressNote } = useAdminData();
-  const [level, setLevel] = useState<StudentLevel>(student.level);
+function ProgressEditor({ student }: { student: StudentDetail }) {
+  const [level, setLevel] = useState(student.level);
   const [progress, setProgress] = useState(student.progress);
+  const [notes, setNotes] = useState(student.notes);
   const [noteText, setNoteText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  function handleSave(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault();
-    updateStudent(student.id, { level, progress });
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch(`/api/teacher/students/${student.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level, progress }),
+      });
+      if (res.ok) setSaved(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleAddNote(e: FormEvent) {
+  async function handleAddNote(e: FormEvent) {
     e.preventDefault();
     if (!noteText.trim()) return;
-    addProgressNote(student.id, noteText.trim());
-    setNoteText("");
+    const res = await fetch(`/api/teacher/students/${student.id}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: noteText.trim() }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setNotes((prev) => [data.note, ...prev]);
+      setNoteText("");
+    }
   }
 
   return (
@@ -81,12 +119,12 @@ function ProgressEditor({ student }: { student: Student }) {
               <select
                 id="level"
                 value={level}
-                onChange={(e) => setLevel(e.target.value as StudentLevel)}
+                onChange={(e) => setLevel(e.target.value)}
                 className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
               >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
+                <option value="BEGINNER">Beginner</option>
+                <option value="INTERMEDIATE">Intermediate</option>
+                <option value="ADVANCED">Advanced</option>
               </select>
             </div>
 
@@ -102,9 +140,12 @@ function ProgressEditor({ student }: { student: Student }) {
               />
             </div>
 
-            <Button type="submit" className="self-start">
-              Save Progress
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Save Progress"}
+              </Button>
+              {saved && <p className="text-xs text-muted-foreground">Saved.</p>}
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -115,16 +156,16 @@ function ProgressEditor({ student }: { student: Student }) {
         </h2>
         <Card className="mt-3 border-none bg-background shadow-none">
           <CardContent className="flex flex-col divide-y divide-border p-0">
-            {student.notes.length === 0 && (
+            {notes.length === 0 && (
               <p className="px-6 py-4 text-sm text-muted-foreground">
                 No notes yet.
               </p>
             )}
-            {student.notes.map((note) => (
+            {notes.map((note) => (
               <div key={note.id} className="px-6 py-4">
                 <p className="text-sm text-foreground">{note.note}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {note.date}
+                  {new Date(note.date).toLocaleDateString()}
                 </p>
               </div>
             ))}

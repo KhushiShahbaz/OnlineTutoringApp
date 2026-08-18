@@ -17,7 +17,6 @@ export function PopularCourses() {
 
       <div className="mt-12 flex flex-wrap justify-center gap-8">
         {COURSES.map(({ slug, icon: Icon, name, color, description }) => (
-          <Link key={slug} href={`/courses/${slug}`} className="block">
             <Card className="w-40 border-none bg-secondary/40 shadow-none transition hover:-translate-y-1 hover:shadow-md sm:w-60">
               <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
                 <span
@@ -33,7 +32,6 @@ export function PopularCourses() {
                 )}
               </CardContent>
             </Card>
-          </Link>
         ))}
       </div>
     </section>

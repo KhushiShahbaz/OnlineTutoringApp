@@ -24,7 +24,7 @@ const SUPPORT = [
   { label: "Contact Us", href: "/contact" },
   { label: "Help Center", href: "/faq" },
   { label: "Live Chat", href: "/contact" },
-  // { label: "Staff Login", href: "/admin/login" },
+  { label: "Staff Login", href: "/admin/login" },
 ];
 
 export function Footer() {
