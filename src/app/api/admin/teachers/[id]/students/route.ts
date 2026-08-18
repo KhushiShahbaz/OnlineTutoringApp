@@ -13,7 +13,10 @@ export async function PATCH(request: Request, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
-  const teacher = await prisma.teacher.findUnique({ where: { id } });
+  const teacher = await prisma.teacher.findUnique({
+    where: { id },
+    include: { courses: true },
+  });
   if (!teacher) return notFound("Teacher not found.");
 
   let body: unknown;
@@ -29,10 +32,28 @@ export async function PATCH(request: Request, { params }: Params) {
     : [];
 
   if (studentIds.length > 0) {
-    const validCount = await prisma.student.count({ where: { id: { in: studentIds } } });
-    if (validCount !== studentIds.length) {
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      include: { courses: true },
+    });
+    if (students.length !== studentIds.length) {
       return NextResponse.json(
         { error: "One or more selected students could not be found." },
+        { status: 422 }
+      );
+    }
+
+    const teacherCourseIds = new Set(teacher.courses.map((c) => c.id));
+    const notEnrolled = students.filter(
+      (s) => !s.courses.some((c) => teacherCourseIds.has(c.id))
+    );
+    if (notEnrolled.length > 0) {
+      return NextResponse.json(
+        {
+          error: `${notEnrolled
+            .map((s) => s.name)
+            .join(", ")} ${notEnrolled.length === 1 ? "is" : "are"} not enrolled in a course this teacher teaches.`,
+        },
         { status: 422 }
       );
     }

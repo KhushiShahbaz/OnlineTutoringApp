@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookOpen, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-type TeacherInfo = { name: string; courseName: string };
+type TeacherInfo = { name: string; courseNames: string[] };
 type Student = { progress: number };
 
 export default function TeacherOverviewPage() {
@@ -72,8 +72,8 @@ export default function TeacherOverviewPage() {
       color: "text-rose-600 bg-rose-100",
     },
     {
-      label: "Course",
-      value: teacher?.courseName ?? "—",
+      label: teacher && teacher.courseNames.length > 1 ? "Courses" : "Course",
+      value: teacher?.courseNames.length ? teacher.courseNames.join(", ") : "—",
       icon: BookOpen,
       href: "/teacher/students",
       color: "text-indigo-600 bg-indigo-100",

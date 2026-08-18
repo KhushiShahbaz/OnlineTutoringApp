@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { requireEmail, requireString, type FieldErrors } from "@/lib/validation";
+import { checkTeacherTeachesStudentCourse } from "@/lib/teacher-course-match";
 
 export async function GET() {
   const auth = await requireRole("ADMIN");
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
+  }
+
+  const teacherError = await checkTeacherTeachesStudentCourse(teacherId, courseIds);
+  if (teacherError) {
+    return NextResponse.json({ errors: { teacherId: teacherError } }, { status: 422 });
   }
 
   const existing = await prisma.student.findUnique({ where: { email } });

@@ -9,7 +9,7 @@ export async function GET() {
 
   const teacher = await prisma.teacher.findUnique({
     where: { userId: auth.sub },
-    include: { user: true, course: true },
+    include: { user: true, courses: true },
   });
   if (!teacher) return forbidden();
 
@@ -19,7 +19,10 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    teacher: { name: teacher.user.name, courseName: teacher.course.name },
+    teacher: {
+      name: teacher.user.name,
+      courseNames: teacher.courses.map((c) => c.name),
+    },
     students: students.map((s) => ({
       id: s.id,
       name: s.name,

@@ -14,7 +14,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const teachers = await prisma.teacher.findMany({
-    include: { user: true, course: true, _count: { select: { students: true } } },
+    include: { user: true, courses: true, _count: { select: { students: true } } },
     orderBy: { user: { name: "asc" } },
   });
 
@@ -23,8 +23,8 @@ export async function GET() {
       id: t.id,
       name: t.user.name,
       email: t.user.email,
-      courseId: t.courseId,
-      courseName: t.course.name,
+      courseIds: t.courses.map((c) => c.id),
+      courseNames: t.courses.map((c) => c.name),
       studentCount: t._count.students,
     })),
   });
@@ -50,12 +50,17 @@ export async function POST(request: Request) {
   });
   const email = requireEmail(errors, "email", data.email);
   const password = requirePassword(errors, "password", data.password);
-  const courseId = typeof data.courseId === "string" ? data.courseId : "";
+  const courseIds = Array.isArray(data.courseIds)
+    ? data.courseIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
 
-  if (!courseId) {
-    errors.courseId = "Select a course.";
-  } else if (!(await prisma.course.findUnique({ where: { id: courseId } }))) {
-    errors.courseId = "Select a valid course.";
+  if (courseIds.length === 0) {
+    errors.courseIds = "Select at least one course.";
+  } else {
+    const validCount = await prisma.course.count({ where: { id: { in: courseIds } } });
+    if (validCount !== courseIds.length) {
+      errors.courseIds = "Select valid courses.";
+    }
   }
 
   if (Object.keys(errors).length > 0) {
@@ -78,9 +83,9 @@ export async function POST(request: Request) {
       email,
       passwordHash,
       role: "TEACHER",
-      teacher: { create: { courseId } },
+      teacher: { create: { courses: { connect: courseIds.map((id) => ({ id })) } } },
     },
-    include: { teacher: { include: { course: true } } },
+    include: { teacher: { include: { courses: true } } },
   });
 
   return NextResponse.json({
@@ -88,8 +93,8 @@ export async function POST(request: Request) {
       id: user.teacher!.id,
       name: user.name,
       email: user.email,
-      courseId: user.teacher!.courseId,
-      courseName: user.teacher!.course.name,
+      courseIds: user.teacher!.courses.map((c) => c.id),
+      courseNames: user.teacher!.courses.map((c) => c.name),
       studentCount: 0,
     },
   });

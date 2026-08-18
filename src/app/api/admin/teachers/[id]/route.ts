@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: Params) {
     where: { id },
     include: {
       user: true,
-      course: true,
+      courses: true,
       students: { orderBy: { name: "asc" } },
     },
   });
@@ -27,8 +27,8 @@ export async function GET(_request: Request, { params }: Params) {
       id: teacher.id,
       name: teacher.user.name,
       email: teacher.user.email,
-      courseId: teacher.courseId,
-      courseName: teacher.course.name,
+      courseIds: teacher.courses.map((c) => c.id),
+      courseNames: teacher.courses.map((c) => c.name),
       students: teacher.students.map((s) => ({
         id: s.id,
         name: s.name,
@@ -61,12 +61,17 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const name = requireString(errors, "name", data.name, "Full name", { min: 2, max: 100 });
   const email = requireEmail(errors, "email", data.email);
-  const courseId = typeof data.courseId === "string" ? data.courseId : "";
+  const courseIds = Array.isArray(data.courseIds)
+    ? data.courseIds.filter((cid): cid is string => typeof cid === "string" && cid.length > 0)
+    : [];
 
-  if (!courseId) {
-    errors.courseId = "Select a course.";
-  } else if (!(await prisma.course.findUnique({ where: { id: courseId } }))) {
-    errors.courseId = "Select a valid course.";
+  if (courseIds.length === 0) {
+    errors.courseIds = "Select at least one course.";
+  } else {
+    const validCount = await prisma.course.count({ where: { id: { in: courseIds } } });
+    if (validCount !== courseIds.length) {
+      errors.courseIds = "Select valid courses.";
+    }
   }
 
   if (Object.keys(errors).length === 0 && email !== existing.user.email) {
@@ -81,21 +86,40 @@ export async function PATCH(request: Request, { params }: Params) {
   const teacher = await prisma.teacher.update({
     where: { id },
     data: {
-      course: { connect: { id: courseId } },
+      courses: { set: courseIds.map((cid) => ({ id: cid })) },
       user: { update: { name, email } },
     },
-    include: { user: true, course: true, _count: { select: { students: true } } },
+    include: { user: true, courses: true, _count: { select: { students: true } } },
   });
+
+  // If a course was removed, unassign any students who no longer share
+  // any course with this teacher — keeps the roster consistent with the
+  // "only students enrolled in a course you teach" rule.
+  const stillAssigned = await prisma.student.findMany({
+    where: { teacherId: id },
+    include: { courses: true },
+  });
+  const teacherCourseIds = new Set(courseIds);
+  const toUnassign = stillAssigned
+    .filter((s) => !s.courses.some((c) => teacherCourseIds.has(c.id)))
+    .map((s) => s.id);
+  if (toUnassign.length > 0) {
+    await prisma.student.updateMany({
+      where: { id: { in: toUnassign } },
+      data: { teacherId: null },
+    });
+  }
 
   return NextResponse.json({
     teacher: {
       id: teacher.id,
       name: teacher.user.name,
       email: teacher.user.email,
-      courseId: teacher.courseId,
-      courseName: teacher.course.name,
-      studentCount: teacher._count.students,
+      courseIds: teacher.courses.map((c) => c.id),
+      courseNames: teacher.courses.map((c) => c.name),
+      studentCount: teacher._count.students - toUnassign.length,
     },
+    unassignedStudentCount: toUnassign.length,
   });
 }
 

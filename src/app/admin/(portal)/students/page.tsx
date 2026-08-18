@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, Search, Users } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { RowActionLink } from "@/components/dashboard/row-action-button";
+import { RowActionButton, RowActionLink } from "@/components/dashboard/row-action-button";
 import {
   Sheet,
   SheetClose,
@@ -29,7 +29,7 @@ type Student = {
   status: string;
 };
 
-type Teacher = { id: string; name: string };
+type Teacher = { id: string; name: string; courseIds: string[] };
 type Course = { id: string; name: string };
 
 const EMPTY_FORM = {
@@ -67,6 +67,7 @@ export default function AdminStudentsPage() {
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -99,13 +100,24 @@ export default function AdminStudentsPage() {
   }, [students, query, statusFilter]);
 
   function toggleCourse(courseId: string) {
-    setForm((f) => ({
-      ...f,
-      courseIds: f.courseIds.includes(courseId)
+    setForm((f) => {
+      const nextCourseIds = f.courseIds.includes(courseId)
         ? f.courseIds.filter((id) => id !== courseId)
-        : [...f.courseIds, courseId],
-    }));
+        : [...f.courseIds, courseId];
+      const teacherStillValid = teachers.some(
+        (t) => t.id === f.teacherId && t.courseIds.some((cid) => nextCourseIds.includes(cid))
+      );
+      return {
+        ...f,
+        courseIds: nextCourseIds,
+        teacherId: teacherStillValid ? f.teacherId : "",
+      };
+    });
   }
+
+  const availableTeachers = teachers.filter((t) =>
+    t.courseIds.some((cid) => form.courseIds.includes(cid))
+  );
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -144,6 +156,28 @@ export default function AdminStudentsPage() {
       setOpen(false);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(student: Student) {
+    const confirmed = window.confirm(
+      `Delete ${student.name}? This will remove their notes, invoices, and notifications too. This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(student.id);
+    try {
+      const res = await fetch(`/api/admin/students/${student.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setStudents((prev) => prev?.filter((s) => s.id !== student.id) ?? prev);
+      } else {
+        const data = await res.json().catch(() => null);
+        window.alert(data?.error ?? "Couldn't delete this student.");
+      }
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -236,15 +270,26 @@ export default function AdminStudentsPage() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, teacherId: e.target.value }))
                   }
+                  disabled={form.courseIds.length === 0}
                   className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
                 >
                   <option value="">Unassigned</option>
-                  {teachers.map((teacher) => (
+                  {availableTeachers.map((teacher) => (
                     <option key={teacher.id} value={teacher.id}>
                       {teacher.name}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  {form.courseIds.length === 0
+                    ? "Select a course to see teachers who teach it."
+                    : availableTeachers.length === 0
+                      ? "No teacher teaches these courses yet."
+                      : "Only teachers of the selected courses are shown."}
+                </p>
+                {errors.teacherId && (
+                  <p className="text-xs text-destructive">{errors.teacherId}</p>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="level">Study Level</Label>
@@ -406,12 +451,19 @@ export default function AdminStudentsPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-1.5">
                         <RowActionLink
                           href={`/admin/students/${student.id}`}
                           icon={Pencil}
                           label={`Edit ${student.name}`}
                           variant="edit"
+                        />
+                        <RowActionButton
+                          onClick={() => handleDelete(student)}
+                          disabled={deletingId === student.id}
+                          icon={Trash2}
+                          label={`Delete ${student.name}`}
+                          variant="danger"
                         />
                       </div>
                     </td>

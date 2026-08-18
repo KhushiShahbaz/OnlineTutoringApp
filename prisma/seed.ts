@@ -63,7 +63,7 @@ async function main() {
       email: "hafsa.siddiqui@edusphereacademy.com",
       passwordHash: teacherPassword,
       role: "TEACHER",
-      teacher: { create: { courseId: quran.id } },
+      teacher: { create: { courses: { connect: [{ id: quran.id }] } } },
     },
     include: { teacher: true },
   });
@@ -76,7 +76,7 @@ async function main() {
       email: "bilal.ahmed@edusphereacademy.com",
       passwordHash: teacherPassword,
       role: "TEACHER",
-      teacher: { create: { courseId: computer.id } },
+      teacher: { create: { courses: { connect: [{ id: computer.id }] } } },
     },
     include: { teacher: true },
   });

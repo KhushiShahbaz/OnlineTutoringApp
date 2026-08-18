@@ -18,12 +18,13 @@ type Student = {
   level: string;
   progress: number;
   status: string;
+  courseIds?: string[];
 };
 type TeacherDetail = {
   id: string;
   name: string;
   email: string;
-  courseId: string;
+  courseIds: string[];
   students: Student[];
 };
 type Course = { id: string; name: string };
@@ -81,7 +82,7 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
   const [form, setForm] = useState({
     name: teacher.name,
     email: teacher.email,
-    courseId: teacher.courseId,
+    courseIds: teacher.courseIds,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -92,6 +93,16 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
   const [allStudents, setAllStudents] = useState<Student[] | null>(null);
   const [addStudentId, setAddStudentId] = useState("");
   const [rosterSaving, setRosterSaving] = useState(false);
+  const [rosterError, setRosterError] = useState<string | null>(null);
+
+  function toggleCourse(courseId: string) {
+    setForm((f) => ({
+      ...f,
+      courseIds: f.courseIds.includes(courseId)
+        ? f.courseIds.filter((id) => id !== courseId)
+        : [...f.courseIds, courseId],
+    }));
+  }
 
   useEffect(() => {
     let active = true;
@@ -125,6 +136,12 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
       const data = await res.json();
       if (res.ok) {
         setSaved(true);
+        if (data.unassignedStudentCount > 0) {
+          const refreshed = await fetch(`/api/admin/teachers/${teacher.id}`).then((r) =>
+            r.json()
+          );
+          if (refreshed?.teacher) setStudents(refreshed.teacher.students);
+        }
       } else {
         setErrors(data.errors ?? { form: data.error ?? "Something went wrong." });
       }
@@ -135,15 +152,18 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
 
   async function saveRoster(nextStudentIds: string[]) {
     setRosterSaving(true);
+    setRosterError(null);
     try {
       const res = await fetch(`/api/admin/teachers/${teacher.id}/students`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ studentIds: nextStudentIds }),
       });
+      const data = await res.json().catch(() => null);
       if (res.ok) {
-        const data = await res.json();
         setStudents(data.students);
+      } else {
+        setRosterError(data?.error ?? "Couldn't update the roster.");
       }
     } finally {
       setRosterSaving(false);
@@ -183,7 +203,12 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
   }
 
   const assignedIds = new Set(students.map((s) => s.id));
-  const availableStudents = (allStudents ?? []).filter((s) => !assignedIds.has(s.id));
+  const teacherCourseIds = new Set(form.courseIds);
+  const availableStudents = (allStudents ?? []).filter(
+    (s) =>
+      !assignedIds.has(s.id) &&
+      (s.courseIds ?? []).some((cid) => teacherCourseIds.has(cid))
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -236,21 +261,30 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="course">Teaches</Label>
-              <select
-                id="course"
-                value={form.courseId}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, courseId: e.target.value }))
-                }
-                className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
-              >
+              <Label>Teaches</Label>
+              <div className="flex flex-wrap gap-1.5">
                 {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
+                  <label
+                    key={course.id}
+                    className="flex items-center gap-2 rounded-lg border border-input px-2.5 py-1.5 text-sm has-checked:border-primary has-checked:bg-primary/10"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.courseIds.includes(course.id)}
+                      onChange={() => toggleCourse(course.id)}
+                      className="h-3.5 w-3.5 accent-primary"
+                    />
                     {course.name}
-                  </option>
+                  </label>
                 ))}
-              </select>
+              </div>
+              {errors.courseIds && (
+                <p className="text-xs text-destructive">{errors.courseIds}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Removing a course here will unassign any of this teacher&apos;s
+                students who aren&apos;t enrolled in a remaining course.
+              </p>
             </div>
 
             {errors.form && (
@@ -290,7 +324,7 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
           >
             <option value="">
               {availableStudents.length === 0
-                ? "No other students to assign"
+                ? "No students enrolled in these courses to assign"
                 : "Select a student to assign..."}
             </option>
             {availableStudents.map((s) => (
@@ -309,6 +343,13 @@ function TeacherEditor({ teacher, courses }: { teacher: TeacherDetail; courses: 
             Assign
           </Button>
         </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Only students enrolled in one of this teacher&apos;s courses can be
+          assigned.
+        </p>
+        {rosterError && (
+          <p className="mt-1.5 text-xs text-destructive">{rosterError}</p>
+        )}
 
         <Card className="mt-3 border-none bg-background shadow-none">
           <CardContent className="flex flex-col divide-y divide-border p-0">

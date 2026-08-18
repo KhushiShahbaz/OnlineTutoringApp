@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { notFound } from "@/lib/api-errors";
+import { checkTeacherTeachesStudentCourse } from "@/lib/teacher-course-match";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,7 +32,10 @@ export async function PATCH(request: Request, { params }: Params) {
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
-  const existing = await prisma.student.findUnique({ where: { id } });
+  const existing = await prisma.student.findUnique({
+    where: { id },
+    include: { courses: true },
+  });
   if (!existing) return notFound("Student not found.");
 
   let body: unknown;
@@ -69,6 +73,12 @@ export async function PATCH(request: Request, { params }: Params) {
     if (validCount !== courseIds.length) {
       errors.courseIds = "Select valid courses.";
     }
+  }
+
+  if (Object.keys(errors).length === 0) {
+    const effectiveCourseIds = courseIds ?? existing.courses.map((c) => c.id);
+    const teacherError = await checkTeacherTeachesStudentCourse(teacherId, effectiveCourseIds);
+    if (teacherError) errors.teacherId = teacherError;
   }
 
   if (Object.keys(errors).length > 0) {

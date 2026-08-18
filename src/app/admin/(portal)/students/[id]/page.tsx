@@ -22,7 +22,7 @@ type StudentDetail = {
   status: string;
   notes: Note[];
 };
-type Teacher = { id: string; name: string };
+type Teacher = { id: string; name: string; courseIds: string[] };
 type Course = { id: string; name: string };
 
 function initials(name: string) {
@@ -98,17 +98,30 @@ function StudentEditor({
   });
 
   function toggleCourse(courseId: string) {
-    setForm((f) => ({
-      ...f,
-      courseIds: f.courseIds.includes(courseId)
+    setForm((f) => {
+      const nextCourseIds = f.courseIds.includes(courseId)
         ? f.courseIds.filter((cid) => cid !== courseId)
-        : [...f.courseIds, courseId],
-    }));
+        : [...f.courseIds, courseId];
+      const teacherStillValid = teachers.some(
+        (t) => t.id === f.teacherId && t.courseIds.some((cid) => nextCourseIds.includes(cid))
+      );
+      return {
+        ...f,
+        courseIds: nextCourseIds,
+        teacherId: teacherStillValid ? f.teacherId : "",
+      };
+    });
   }
+
+  const availableTeachers = teachers.filter((t) =>
+    t.courseIds.some((cid) => form.courseIds.includes(cid))
+  );
+
   const [notes, setNotes] = useState(student.notes);
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!saved) return;
@@ -120,13 +133,19 @@ function StudentEditor({
     e.preventDefault();
     setSaving(true);
     setSaved(false);
+    setErrors({});
     try {
       const res = await fetch(`/api/admin/students/${student.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (res.ok) setSaved(true);
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        setSaved(true);
+      } else {
+        setErrors(data?.errors ?? { form: data?.error ?? "Something went wrong." });
+      }
     } finally {
       setSaving(false);
     }
@@ -248,15 +267,26 @@ function StudentEditor({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, teacherId: e.target.value }))
                 }
+                disabled={form.courseIds.length === 0}
                 className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
               >
                 <option value="">Unassigned</option>
-                {teachers.map((teacher) => (
+                {availableTeachers.map((teacher) => (
                   <option key={teacher.id} value={teacher.id}>
                     {teacher.name}
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">
+                {form.courseIds.length === 0
+                  ? "Select a course to see teachers who teach it."
+                  : availableTeachers.length === 0
+                    ? "No teacher teaches these courses yet."
+                    : "Only teachers of the selected courses are shown."}
+              </p>
+              {errors.teacherId && (
+                <p className="text-xs text-destructive">{errors.teacherId}</p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -324,6 +354,10 @@ function StudentEditor({
                 />
               </div>
             </div>
+
+            {errors.form && (
+              <p className="text-xs text-destructive sm:col-span-2">{errors.form}</p>
+            )}
 
             <div className="flex items-center gap-3 sm:col-span-2">
               <Button type="submit" disabled={saving}>

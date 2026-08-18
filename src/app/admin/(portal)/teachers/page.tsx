@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, Search, Users } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { RowActionLink } from "@/components/dashboard/row-action-button";
+import { RowActionButton, RowActionLink } from "@/components/dashboard/row-action-button";
 import {
   Sheet,
   SheetClose,
@@ -20,13 +20,13 @@ type Teacher = {
   id: string;
   name: string;
   email: string;
-  courseId: string;
-  courseName: string;
+  courseIds: string[];
+  courseNames: string[];
   studentCount: number;
 };
 type Course = { id: string; name: string };
 
-const EMPTY_FORM = { name: "", email: "", password: "", courseId: "" };
+const EMPTY_FORM = { name: "", email: "", password: "", courseIds: [] as string[] };
 
 function initials(name: string) {
   return name
@@ -46,6 +46,7 @@ export default function AdminTeachersPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -57,7 +58,6 @@ export default function AdminTeachersPage() {
       setTeachers(teachersData.teachers ?? []);
       const courseList = coursesData.courses ?? [];
       setCourses(courseList);
-      setForm((f) => ({ ...f, courseId: f.courseId || courseList[0]?.id || "" }));
     });
     return () => {
       active = false;
@@ -76,8 +76,17 @@ export default function AdminTeachersPage() {
 
   function openAddForm() {
     setErrors({});
-    setForm({ name: "", email: "", password: "", courseId: courses[0]?.id ?? "" });
+    setForm(EMPTY_FORM);
     setOpen(true);
+  }
+
+  function toggleCourse(courseId: string) {
+    setForm((f) => ({
+      ...f,
+      courseIds: f.courseIds.includes(courseId)
+        ? f.courseIds.filter((id) => id !== courseId)
+        : [...f.courseIds, courseId],
+    }));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -105,13 +114,35 @@ export default function AdminTeachersPage() {
     }
   }
 
+  async function handleDelete(teacher: Teacher) {
+    const confirmed = window.confirm(
+      `Delete ${teacher.name}? Their assigned students will become unassigned. This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(teacher.id);
+    try {
+      const res = await fetch(`/api/admin/teachers/${teacher.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setTeachers((prev) => prev?.filter((t) => t.id !== teacher.id) ?? prev);
+      } else {
+        const data = await res.json().catch(() => null);
+        window.alert(data?.error ?? "Couldn't delete this teacher.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Teachers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage teaching staff and their assigned course.
+            Manage teaching staff and the courses they teach.
           </p>
         </div>
 
@@ -176,29 +207,31 @@ export default function AdminTeachersPage() {
                 )}
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="course">Teaches</Label>
+                <Label>Teaches</Label>
                 {courses.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     No courses yet — add one under Courses first.
                   </p>
                 ) : (
-                  <select
-                    id="course"
-                    value={form.courseId}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, courseId: e.target.value }))
-                    }
-                    className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
-                  >
+                  <div className="flex flex-col gap-1.5">
                     {courses.map((course) => (
-                      <option key={course.id} value={course.id}>
+                      <label
+                        key={course.id}
+                        className="flex items-center gap-2 rounded-lg border border-input px-2.5 py-1.5 text-sm has-checked:border-primary has-checked:bg-primary/10"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.courseIds.includes(course.id)}
+                          onChange={() => toggleCourse(course.id)}
+                          className="h-3.5 w-3.5 accent-primary"
+                        />
                         {course.name}
-                      </option>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 )}
-                {errors.courseId && (
-                  <p className="text-xs text-destructive">{errors.courseId}</p>
+                {errors.courseIds && (
+                  <p className="text-xs text-destructive">{errors.courseIds}</p>
                 )}
               </div>
 
@@ -242,7 +275,7 @@ export default function AdminTeachersPage() {
               <thead>
                 <tr className="border-b border-border text-left text-xs tracking-wide text-muted-foreground uppercase">
                   <th className="px-6 py-3 font-medium">Name</th>
-                  <th className="px-6 py-3 font-medium">Course</th>
+                  <th className="px-6 py-3 font-medium">Courses</th>
                   <th className="px-6 py-3 font-medium">Students</th>
                   <th className="px-6 py-3 text-right font-medium">Actions</th>
                 </tr>
@@ -289,18 +322,25 @@ export default function AdminTeachersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {teacher.courseName}
+                      {teacher.courseNames.join(", ")}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {teacher.studentCount}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-1.5">
                         <RowActionLink
                           href={`/admin/teachers/${teacher.id}`}
                           icon={Pencil}
                           label={`Edit ${teacher.name}`}
                           variant="edit"
+                        />
+                        <RowActionButton
+                          onClick={() => handleDelete(teacher)}
+                          disabled={deletingId === teacher.id}
+                          icon={Trash2}
+                          label={`Delete ${teacher.name}`}
+                          variant="danger"
                         />
                       </div>
                     </td>
