@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
+import { sendAccountCreatedEmail } from "@/lib/mailer";
 import {
   requireEmail,
   requirePassword,
@@ -88,13 +89,26 @@ export async function POST(request: Request) {
     include: { teacher: { include: { courses: true } } },
   });
 
+  const courseNames = user.teacher!.courses.map((c) => c.name);
+
+  sendAccountCreatedEmail({
+    to: email,
+    name,
+    role: "TEACHER",
+    email,
+    password,
+    details: [{ label: courseNames.length > 1 ? "Courses" : "Course", value: courseNames.join(", ") }],
+  }).catch((error) => {
+    console.error("Failed to send account-created email", error);
+  });
+
   return NextResponse.json({
     teacher: {
       id: user.teacher!.id,
       name: user.name,
       email: user.email,
       courseIds: user.teacher!.courses.map((c) => c.id),
-      courseNames: user.teacher!.courses.map((c) => c.name),
+      courseNames,
       studentCount: 0,
     },
   });

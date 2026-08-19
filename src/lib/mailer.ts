@@ -229,6 +229,267 @@ export async function sendNotificationEmail({
   });
 }
 
+function getSiteUrl() {
+  return process.env.SITE_URL ?? "http://localhost:3000";
+}
+
+const ROLE_COPY = {
+  ADMIN: {
+    title: "Your Admin Account is Ready 🎉",
+    description: "You now have administrator access to Global Teaching Hub.",
+    loginPath: "/admin/login",
+    loginLabel: "Go to Staff Login",
+  },
+  TEACHER: {
+    title: "Welcome to Global Teaching Hub 🎓",
+    description: "Your teacher account has been created.",
+    loginPath: "/admin/login",
+    loginLabel: "Go to Staff Login",
+  },
+  STUDENT: {
+    title: "Welcome to Global Teaching Hub 🎓",
+    description: "Your student account has been created.",
+    loginPath: "/login",
+    loginLabel: "Go to Student Login",
+  },
+} as const;
+
+export async function sendAccountCreatedEmail({
+  to,
+  name,
+  role,
+  email,
+  password,
+  details = [],
+}: {
+  to: string;
+  name: string;
+  role: keyof typeof ROLE_COPY;
+  email: string;
+  /** Omit for self-registered accounts — the user already knows their password. */
+  password?: string;
+  /** Extra context rows, e.g. course/teacher assignment. */
+  details?: { label: string; value: string }[];
+}) {
+  const transporter = getTransporter();
+  const copy = ROLE_COPY[role];
+  const loginUrl = `${getSiteUrl()}${copy.loginPath}`;
+  const subject = `${copy.title.replace(/\s*🎉|\s*🎓/, "")} — Global Teaching Hub`;
+
+  const infoRows = [{ label: "Name", value: name }, { label: "Email", value: email }, ...details];
+
+  const text = [
+    copy.description,
+    "",
+    ...infoRows.map(({ label, value }) => `${label}: ${value}`),
+    ...(password ? ["", `Temporary password: ${password}`] : []),
+    "",
+    `Log in: ${loginUrl}`,
+  ].join("\n");
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(subject)}</title>
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background:#f4f7fb;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#172033;
+">
+
+  <div style="width:100%; padding:40px 15px; box-sizing:border-box;">
+
+    <div style="
+      max-width:620px;
+      margin:0 auto;
+      background:#ffffff;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid #e5eaf1;
+      box-shadow:0 4px 18px rgba(20,40,80,0.08);
+    ">
+
+      <!-- Header -->
+      <div style="
+        background:linear-gradient(135deg,#0f766e,#115e59);
+        padding:36px 32px;
+        color:#ffffff;
+        text-align:center;
+      ">
+        <div style="
+          font-size:14px;
+          font-weight:bold;
+          letter-spacing:1px;
+          opacity:0.85;
+          margin-bottom:14px;
+        ">
+          GLOBAL TEACHING HUB
+        </div>
+
+        <div style="font-size:26px; line-height:1.3; font-weight:700;">
+          ${copy.title}
+        </div>
+
+        <div style="font-size:14px; margin-top:10px; opacity:0.92;">
+          ${copy.description}
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div style="padding:32px;">
+
+        <p style="margin:0 0 22px; font-size:15px; color:#344054; line-height:1.6;">
+          Hi ${escapeHtml(name.split(" ")[0])}, here are your account details:
+        </p>
+
+        <div style="
+          font-size:13px;
+          color:#667085;
+          margin-bottom:14px;
+          text-transform:uppercase;
+          letter-spacing:0.6px;
+          font-weight:600;
+        ">
+          Account Details
+        </div>
+
+        ${infoRows
+          .map(
+            ({ label, value }) => `
+              <div style="
+                margin-bottom:12px;
+                padding:14px 18px;
+                background:#f8fafc;
+                border:1px solid #e8edf3;
+                border-radius:10px;
+              ">
+                <div style="
+                  font-size:12px;
+                  color:#667085;
+                  font-weight:600;
+                  margin-bottom:4px;
+                  text-transform:uppercase;
+                  letter-spacing:0.4px;
+                ">
+                  ${escapeHtml(label)}
+                </div>
+                <div style="font-size:15px; color:#172033; font-weight:500; word-break:break-word;">
+                  ${escapeHtml(value)}
+                </div>
+              </div>
+            `
+          )
+          .join("")}
+
+        ${
+          password
+            ? `
+        <div style="
+          margin-top:22px;
+          padding:20px;
+          background:#fffbeb;
+          border:1px dashed #f5c451;
+          border-radius:12px;
+        ">
+          <div style="
+            font-size:12px;
+            color:#92610a;
+            font-weight:700;
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+            margin-bottom:10px;
+          ">
+            🔑 Your Login Credentials
+          </div>
+          <div style="font-size:13px; color:#92610a; margin-bottom:4px;">Email</div>
+          <div style="
+            font-family:'Courier New',monospace;
+            font-size:15px;
+            color:#172033;
+            background:#ffffff;
+            border:1px solid #f0dca0;
+            border-radius:8px;
+            padding:10px 14px;
+            margin-bottom:12px;
+            word-break:break-all;
+          ">${escapeHtml(email)}</div>
+          <div style="font-size:13px; color:#92610a; margin-bottom:4px;">Temporary Password</div>
+          <div style="
+            font-family:'Courier New',monospace;
+            font-size:15px;
+            font-weight:700;
+            color:#172033;
+            background:#ffffff;
+            border:1px solid #f0dca0;
+            border-radius:8px;
+            padding:10px 14px;
+            letter-spacing:0.5px;
+          ">${escapeHtml(password)}</div>
+          <div style="font-size:12px; color:#92610a; margin-top:12px; line-height:1.5;">
+            Please keep this somewhere safe — this email is the only place it&rsquo;s shown.
+          </div>
+        </div>
+        `
+            : ""
+        }
+
+        <!-- CTA -->
+        <div style="text-align:center; margin-top:28px;">
+          <a href="${loginUrl}" style="
+            display:inline-block;
+            background:#0f766e;
+            color:#ffffff;
+            text-decoration:none;
+            font-size:15px;
+            font-weight:700;
+            padding:14px 32px;
+            border-radius:999px;
+          ">
+            ${copy.loginLabel} →
+          </a>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div style="
+        border-top:1px solid #edf0f4;
+        padding:20px 32px;
+        background:#fafbfc;
+        color:#98a2b3;
+        font-size:12px;
+        line-height:1.6;
+        text-align:center;
+      ">
+        This email was sent because an account was created for you at
+        <strong style="color:#667085;">Global Teaching Hub</strong>.
+        If this wasn&rsquo;t you, please contact us.
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
+`;
+
+  await transporter.sendMail({
+    from: `"Global Teaching Hub" <${GMAIL_SMTP_USER}>`,
+    to,
+    subject,
+    text,
+    html,
+  });
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")

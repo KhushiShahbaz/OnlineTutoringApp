@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { createSessionToken, setSessionCookie } from "@/lib/auth";
+import { sendAccountCreatedEmail } from "@/lib/mailer";
 import {
   requireEmail,
   requirePassword,
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
 
   const token = await createSessionToken({ sub: user.id, role: user.role });
   await setSessionCookie(token);
+
+  // Don't let a flaky email provider block registration — the account
+  // is already created and usable regardless of whether this succeeds.
+  sendAccountCreatedEmail({ to: email, name, role: "STUDENT", email }).catch((error) => {
+    console.error("Failed to send account-created email", error);
+  });
 
   return NextResponse.json({ ok: true, role: user.role });
 }

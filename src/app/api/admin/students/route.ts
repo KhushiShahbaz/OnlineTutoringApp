@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { requireEmail, requireString, type FieldErrors } from "@/lib/validation";
 import { checkTeacherTeachesStudentCourse } from "@/lib/teacher-course-match";
+import { generateTempPassword, hashPassword } from "@/lib/password";
+import { sendAccountCreatedEmail } from "@/lib/mailer";
 
 export async function GET() {
   const auth = await requireRole("ADMIN");
@@ -79,32 +81,66 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors: { teacherId: teacherError } }, { status: 422 });
   }
 
-  const existing = await prisma.student.findUnique({ where: { email } });
-  if (existing) {
+  const [existingStudent, existingUser] = await Promise.all([
+    prisma.student.findUnique({ where: { email } }),
+    prisma.user.findUnique({ where: { email } }),
+  ]);
+  if (existingStudent || existingUser) {
     return NextResponse.json(
       { errors: { email: "A student with this email already exists." } },
       { status: 422 }
     );
   }
 
-  const student = await prisma.student.create({
+  const tempPassword = generateTempPassword();
+  const passwordHash = await hashPassword(tempPassword);
+
+  const user = await prisma.user.create({
     data: {
       name,
       email,
-      courses: { connect: courseIds.map((id) => ({ id })) },
-      teacherId,
-      level: level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
-      progress: 0,
-      status: "ACTIVE",
+      passwordHash,
+      role: "STUDENT",
+      student: {
+        create: {
+          name,
+          email,
+          courses: { connect: courseIds.map((id) => ({ id })) },
+          teacherId,
+          level: level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
+          progress: 0,
+          status: "ACTIVE",
+        },
+      },
     },
-    include: { courses: true },
+    include: { student: { include: { courses: true, teacher: { include: { user: true } } } } },
+  });
+  const student = user.student!;
+
+  const courseNames = student.courses.map((c) => c.name);
+  const details = [
+    ...(courseNames.length > 0
+      ? [{ label: courseNames.length > 1 ? "Courses" : "Course", value: courseNames.join(", ") }]
+      : []),
+    ...(student.teacher ? [{ label: "Teacher", value: student.teacher.user.name }] : []),
+  ];
+
+  sendAccountCreatedEmail({
+    to: email,
+    name,
+    role: "STUDENT",
+    email,
+    password: tempPassword,
+    details,
+  }).catch((error) => {
+    console.error("Failed to send account-created email", error);
   });
 
   return NextResponse.json({
     student: {
       ...student,
       courseIds: student.courses.map((c) => c.id),
-      courseNames: student.courses.map((c) => c.name),
+      courseNames,
     },
   });
 }
