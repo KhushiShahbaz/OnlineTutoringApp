@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 };
 
 const CONTACT_DETAILS = [
-  { icon: Phone, label: "+92 300 1234567" },
-  { icon: Mail, label: "info@edusphereacademy.com" },
-  { icon: MapPin, label: "Rawalpindi, Pakistan" },
+  { icon: Phone, label: "+92 319 5459398" },
+  { icon: Mail, label: "globalteachinghub1@gmail.com" },
+  { icon: MapPin, label: "Lahore, Pakistan" },
 ];
 
 export default function ContactPage() {

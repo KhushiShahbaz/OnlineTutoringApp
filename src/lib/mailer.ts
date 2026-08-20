@@ -498,3 +498,220 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+function renderStudentEmail({
+  title,
+  description,
+  greetingName,
+  rows,
+}: {
+  title: string;
+  description: string;
+  greetingName: string;
+  rows: { label: string; value: string }[];
+}) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(title)}</title>
+</head>
+
+<body style="margin:0; padding:0; background:#f4f7fb; font-family:Arial,Helvetica,sans-serif; color:#172033;">
+  <div style="width:100%; padding:40px 15px; box-sizing:border-box;">
+    <div style="max-width:620px; margin:0 auto; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e5eaf1; box-shadow:0 4px 18px rgba(20,40,80,0.08);">
+
+      <div style="background:linear-gradient(135deg,#0f766e,#115e59); padding:28px 32px; color:#ffffff;">
+        <div style="font-size:14px; font-weight:bold; letter-spacing:0.5px; opacity:0.9; margin-bottom:8px;">GLOBAL TEACHING HUB</div>
+        <div style="font-size:24px; line-height:1.3; font-weight:700;">${title}</div>
+      </div>
+
+      <div style="padding:30px 32px;">
+        <p style="margin:0 0 20px; font-size:15px; color:#344054; line-height:1.6;">
+          Hi ${escapeHtml(greetingName)}, ${description}
+        </p>
+
+        ${rows
+          .map(
+            ({ label, value }) => `
+              <div style="margin-bottom:14px; padding:16px 18px; background:#f8fafc; border:1px solid #e8edf3; border-radius:10px;">
+                <div style="font-size:12px; color:#667085; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">
+                  ${escapeHtml(label)}
+                </div>
+                <div style="font-size:15px; color:#172033; font-weight:500; word-break:break-word;">
+                  ${escapeHtml(value)}
+                </div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+
+      <div style="border-top:1px solid #edf0f4; padding:20px 32px; background:#fafbfc; color:#98a2b3; font-size:12px; line-height:1.6;">
+        This notification was automatically generated from
+        <strong style="color:#667085;">Global Teaching Hub</strong>.
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
+`;
+}
+
+async function sendStudentEmail({
+  to,
+  subject,
+  title,
+  description,
+  greetingName,
+  rows,
+}: {
+  to: string;
+  subject: string;
+  title: string;
+  description: string;
+  greetingName: string;
+  rows: { label: string; value: string }[];
+}) {
+  const transporter = getTransporter();
+  const html = renderStudentEmail({ title, description, greetingName, rows });
+  const text = [description, "", ...rows.map(({ label, value }) => `${label}: ${value}`)].join(
+    "\n"
+  );
+
+  await transporter.sendMail({
+    from: `"Global Teaching Hub" <${GMAIL_SMTP_USER}>`,
+    to,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendInvoiceGeneratedEmail({
+  to,
+  studentName,
+  invoiceNumber,
+  amount,
+  dueDate,
+}: {
+  to: string;
+  studentName: string;
+  invoiceNumber: string;
+  amount: string;
+  dueDate: Date | null;
+}) {
+  await sendStudentEmail({
+    to,
+    subject: `New Invoice ${invoiceNumber} — Global Teaching Hub`,
+    title: "New Invoice Generated 🧾",
+    description: "a new invoice has been generated for your account:",
+    greetingName: studentName.split(" ")[0],
+    rows: [
+      { label: "Invoice Number", value: invoiceNumber },
+      { label: "Amount", value: amount },
+      ...(dueDate ? [{ label: "Due Date", value: dueDate.toLocaleDateString() }] : []),
+    ],
+  });
+}
+
+export async function sendPaymentReminderEmail({
+  to,
+  studentName,
+  invoiceNumber,
+  amount,
+  dueDate,
+}: {
+  to: string;
+  studentName: string;
+  invoiceNumber: string;
+  amount: string;
+  dueDate: Date | null;
+}) {
+  await sendStudentEmail({
+    to,
+    subject: `Payment Reminder: Invoice ${invoiceNumber} — Global Teaching Hub`,
+    title: "Payment Reminder ⏰",
+    description: "this is a friendly reminder that the following invoice is still unpaid:",
+    greetingName: studentName.split(" ")[0],
+    rows: [
+      { label: "Invoice Number", value: invoiceNumber },
+      { label: "Amount", value: amount },
+      ...(dueDate ? [{ label: "Due Date", value: dueDate.toLocaleDateString() }] : []),
+    ],
+  });
+}
+
+export async function sendWeeklyReportEmail({
+  to,
+  studentName,
+  courseName,
+  weekStart,
+  weekEnd,
+  presentCount,
+  totalCount,
+  topicsCovered,
+  teacherRemarks,
+}: {
+  to: string;
+  studentName: string;
+  courseName: string;
+  weekStart: Date;
+  weekEnd: Date;
+  presentCount: number;
+  totalCount: number;
+  topicsCovered: string;
+  teacherRemarks: string | null;
+}) {
+  await sendStudentEmail({
+    to,
+    subject: `Weekly Progress Report — ${courseName} — Global Teaching Hub`,
+    title: "Weekly Progress Report 📘",
+    description: `here's ${studentName.split(" ")[0]}'s progress in ${courseName} for the week of ${weekStart.toLocaleDateString()}:`,
+    greetingName: studentName.split(" ")[0],
+    rows: [
+      { label: "Course", value: courseName },
+      { label: "Attendance", value: `${presentCount}/${totalCount} classes attended` },
+      { label: "Week", value: `${weekStart.toLocaleDateString()} – ${weekEnd.toLocaleDateString()}` },
+      { label: "Topics Covered", value: topicsCovered },
+      ...(teacherRemarks ? [{ label: "Teacher Remarks", value: teacherRemarks }] : []),
+    ],
+  });
+}
+
+export async function sendMonthlyReportEmail({
+  to,
+  studentName,
+  courseName,
+  month,
+  year,
+  attendancePercent,
+  performanceSummary,
+  teacherRemarks,
+}: {
+  to: string;
+  studentName: string;
+  courseName: string;
+  month: string;
+  year: number;
+  attendancePercent: number;
+  performanceSummary: string;
+  teacherRemarks: string | null;
+}) {
+  await sendStudentEmail({
+    to,
+    subject: `Monthly Progress Report — ${courseName} — ${month} ${year} — Global Teaching Hub`,
+    title: "Monthly Progress Report 📗",
+    description: `here's ${studentName.split(" ")[0]}'s progress report for ${courseName}, ${month} ${year}:`,
+    greetingName: studentName.split(" ")[0],
+    rows: [
+      { label: "Course", value: courseName },
+      { label: "Attendance", value: `${attendancePercent}%` },
+      { label: "Performance Summary", value: performanceSummary },
+      ...(teacherRemarks ? [{ label: "Teacher Remarks", value: teacherRemarks }] : []),
+    ],
+  });
+}

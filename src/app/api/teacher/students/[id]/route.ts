@@ -20,14 +20,35 @@ export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
   const student = await prisma.student.findUnique({
     where: { id },
-    include: { notes: { orderBy: { date: "desc" } } },
+    include: {
+      notes: { orderBy: { date: "desc" } },
+      enrollments: {
+        include: {
+          course: true,
+          attendance: { orderBy: { date: "desc" }, take: 30 },
+        },
+      },
+    },
   });
 
   if (!student || student.teacherId !== teacherId) {
     return notFound("Student not found.");
   }
 
-  return NextResponse.json({ student });
+  return NextResponse.json({
+    student: {
+      ...student,
+      enrollments: student.enrollments.map((e) => ({
+        id: e.id,
+        courseId: e.courseId,
+        courseName: e.course.name,
+        classStartTime: e.classStartTime,
+        classEndTime: e.classEndTime,
+        classDays: e.classDays,
+        attendance: e.attendance,
+      })),
+    },
+  });
 }
 
 export async function PATCH(request: Request, { params }: Params) {

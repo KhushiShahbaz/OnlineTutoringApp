@@ -3,11 +3,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { Award, CalendarCheck, Users2 } from "lucide-react";
 import { RegisterForm } from "@/components/sections/register-form";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Sign Up — Global Teaching Hub",
   description: "Create your Global Teaching Hub student account.",
 };
+
+// Course list is admin-managed and must always reflect live data, not a
+// snapshot frozen at build time.
+export const dynamic = "force-dynamic";
 
 const FEATURES = [
   {
@@ -27,7 +32,12 @@ const FEATURES = [
   },
 ];
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const courses = await prisma.course.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true },
+  });
+
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Marketing panel */}
@@ -78,7 +88,7 @@ export default function RegisterPage() {
 
       {/* Form panel */}
       <div className="flex items-center justify-center bg-background px-4 py-16 sm:px-6 lg:px-8">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           <Link
             href="/"
             className="mb-8 flex items-center justify-center gap-2 font-bold lg:hidden"
@@ -103,7 +113,7 @@ export default function RegisterPage() {
           </p>
 
           <div className="mt-8">
-            <RegisterForm />
+            <RegisterForm courses={courses} />
           </div>
         </div>
       </div>

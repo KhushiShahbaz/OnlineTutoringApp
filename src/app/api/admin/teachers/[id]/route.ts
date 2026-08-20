@@ -97,11 +97,11 @@ export async function PATCH(request: Request, { params }: Params) {
   // "only students enrolled in a course you teach" rule.
   const stillAssigned = await prisma.student.findMany({
     where: { teacherId: id },
-    include: { courses: true },
+    include: { enrollments: true },
   });
   const teacherCourseIds = new Set(courseIds);
   const toUnassign = stillAssigned
-    .filter((s) => !s.courses.some((c) => teacherCourseIds.has(c.id)))
+    .filter((s) => !s.enrollments.some((e) => teacherCourseIds.has(e.courseId)))
     .map((s) => s.id);
   if (toUnassign.length > 0) {
     await prisma.student.updateMany({

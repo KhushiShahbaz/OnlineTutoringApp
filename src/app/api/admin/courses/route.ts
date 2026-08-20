@@ -17,7 +17,7 @@ export async function GET() {
 
   const courses = await prisma.course.findMany({
     orderBy: { createdAt: "asc" },
-    include: { _count: { select: { students: true, teachers: true } } },
+    include: { _count: { select: { enrollments: true, teachers: true } } },
   });
 
   return NextResponse.json({
@@ -30,7 +30,7 @@ export async function GET() {
       topics: c.topics,
       color: c.color,
       icon: c.icon,
-      studentCount: c._count.students,
+      studentCount: c._count.enrollments,
       teacherCount: c._count.teachers,
     })),
   });

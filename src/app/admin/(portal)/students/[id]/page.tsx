@@ -9,8 +9,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AttendancePanel, type AttendanceRecord } from "@/components/dashboard/attendance-panel";
+import {
+  ReportsPanel,
+  type WeeklyReport,
+  type MonthlyReport,
+} from "@/components/dashboard/reports-panel";
 
 type Note = { id: string; note: string; date: string };
+type EnrollmentDetail = {
+  id: string;
+  courseId: string;
+  courseName: string;
+  classStartTime: string | null;
+  classEndTime: string | null;
+  classDays: string[];
+  attendance: AttendanceRecord[];
+};
 type StudentDetail = {
   id: string;
   name: string;
@@ -21,9 +36,34 @@ type StudentDetail = {
   progress: number;
   status: string;
   notes: Note[];
+  enrollments: EnrollmentDetail[];
+  phone: string | null;
+  whatsapp: string | null;
+  parentName: string | null;
+  parentContact: string | null;
+  monthlyFee: string | null;
+  joined: string;
 };
 type Teacher = { id: string; name: string; courseIds: string[] };
 type Course = { id: string; name: string };
+
+const CLASS_DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY",
+] as const;
+
+function dayLabel(day: string) {
+  return day.charAt(0) + day.slice(1, 3).toLowerCase();
+}
+
+function toDateInputValue(iso: string) {
+  return iso.slice(0, 10);
+}
 
 function initials(name: string) {
   return name
@@ -40,6 +80,8 @@ export default function AdminStudentDetailsPage() {
   const [student, setStudent] = useState<StudentDetail | null | undefined>(undefined);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -47,11 +89,14 @@ export default function AdminStudentDetailsPage() {
       fetch(`/api/admin/students/${id}`).then((r) => (r.ok ? r.json() : null)),
       fetch("/api/admin/teachers").then((r) => r.json()),
       fetch("/api/admin/courses").then((r) => r.json()),
-    ]).then(([studentData, teachersData, coursesData]) => {
+      fetch(`/api/admin/students/${id}/reports`).then((r) => (r.ok ? r.json() : null)),
+    ]).then(([studentData, teachersData, coursesData, reportsData]) => {
       if (!active) return;
       setStudent(studentData?.student ?? null);
       setTeachers(teachersData.teachers ?? []);
       setCourses(coursesData.courses ?? []);
+      setWeeklyReports(reportsData?.weeklyReports ?? []);
+      setMonthlyReports(reportsData?.monthlyReports ?? []);
     });
     return () => {
       active = false;
@@ -73,17 +118,29 @@ export default function AdminStudentDetailsPage() {
     );
   }
 
-  return <StudentEditor student={student} teachers={teachers} courses={courses} />;
+  return (
+    <StudentEditor
+      student={student}
+      teachers={teachers}
+      courses={courses}
+      weeklyReports={weeklyReports}
+      monthlyReports={monthlyReports}
+    />
+  );
 }
 
 function StudentEditor({
   student,
+  weeklyReports,
+  monthlyReports,
   teachers,
   courses,
 }: {
   student: StudentDetail;
   teachers: Teacher[];
   courses: Course[];
+  weeklyReports: WeeklyReport[];
+  monthlyReports: MonthlyReport[];
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -95,6 +152,12 @@ function StudentEditor({
     level: student.level,
     progress: student.progress,
     status: student.status,
+    phone: student.phone ?? "",
+    whatsapp: student.whatsapp ?? "",
+    parentName: student.parentName ?? "",
+    parentContact: student.parentContact ?? "",
+    monthlyFee: student.monthlyFee ?? "",
+    joined: toDateInputValue(student.joined),
   });
 
   function toggleCourse(courseId: string) {
@@ -117,6 +180,7 @@ function StudentEditor({
     t.courseIds.some((cid) => form.courseIds.includes(cid))
   );
 
+  const [enrollments, setEnrollments] = useState(student.enrollments);
   const [notes, setNotes] = useState(student.notes);
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -240,6 +304,38 @@ function StudentEditor({
                 }
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="whatsapp">WhatsApp Number</Label>
+              <Input
+                id="whatsapp"
+                value={form.whatsapp}
+                onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="parentName">Parent Name</Label>
+              <Input
+                id="parentName"
+                value={form.parentName}
+                onChange={(e) => setForm((f) => ({ ...f, parentName: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="parentContact">Parent Contact</Label>
+              <Input
+                id="parentContact"
+                value={form.parentContact}
+                onChange={(e) => setForm((f) => ({ ...f, parentContact: e.target.value }))}
+              />
+            </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label>Courses</Label>
               <div className="flex flex-wrap gap-1.5">
@@ -329,6 +425,25 @@ function StudentEditor({
               </div>
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="joined">Joining Date</Label>
+              <Input
+                id="joined"
+                type="date"
+                value={form.joined}
+                onChange={(e) => setForm((f) => ({ ...f, joined: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="monthlyFee">Monthly Fee</Label>
+              <Input
+                id="monthlyFee"
+                placeholder="e.g. PKR 5,000"
+                value={form.monthlyFee}
+                onChange={(e) => setForm((f) => ({ ...f, monthlyFee: e.target.value }))}
+              />
+            </div>
+
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="progress">Progress</Label>
@@ -378,6 +493,33 @@ function StudentEditor({
 
       <div className="max-w-2xl">
         <h2 className="text-sm font-semibold text-foreground">
+          Course Schedules
+        </h2>
+        {enrollments.length === 0 && (
+          <Card className="mt-3 border-dashed">
+            <CardContent className="px-6 py-4 text-sm text-muted-foreground">
+              Enroll this student in a course above, then save, to set its class schedule.
+            </CardContent>
+          </Card>
+        )}
+        <div className="mt-3 flex flex-col gap-3">
+          {enrollments.map((enrollment) => (
+            <EnrollmentScheduleCard
+              key={enrollment.id}
+              studentId={student.id}
+              enrollment={enrollment}
+              onSaved={(updated) =>
+                setEnrollments((prev) =>
+                  prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e))
+                )
+              }
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-2xl">
+        <h2 className="text-sm font-semibold text-foreground">
           Progress Notes
         </h2>
         <Card className="mt-3 border-none bg-background shadow-none">
@@ -409,6 +551,148 @@ function StudentEditor({
           </Button>
         </form>
       </div>
+
+      <AttendancePanel
+        apiBase={`/api/admin/students/${student.id}`}
+        enrollments={enrollments.map((e) => ({
+          id: e.id,
+          courseName: e.courseName,
+          attendance: e.attendance,
+        }))}
+      />
+
+      <ReportsPanel
+        apiBase={`/api/admin/students/${student.id}`}
+        enrollments={enrollments.map((e) => ({ id: e.id, courseName: e.courseName }))}
+        initialWeekly={weeklyReports}
+        initialMonthly={monthlyReports}
+      />
     </div>
+  );
+}
+
+function EnrollmentScheduleCard({
+  studentId,
+  enrollment,
+  onSaved,
+}: {
+  studentId: string;
+  enrollment: EnrollmentDetail;
+  onSaved: (updated: {
+    id: string;
+    classStartTime: string | null;
+    classEndTime: string | null;
+    classDays: string[];
+  }) => void;
+}) {
+  const [classStartTime, setClassStartTime] = useState(enrollment.classStartTime ?? "");
+  const [classEndTime, setClassEndTime] = useState(enrollment.classEndTime ?? "");
+  const [classDays, setClassDays] = useState(enrollment.classDays);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!saved) return;
+    const timeout = setTimeout(() => setSaved(false), 2000);
+    return () => clearTimeout(timeout);
+  }, [saved]);
+
+  function toggleDay(day: string) {
+    setClassDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    setErrors({});
+    try {
+      const res = await fetch(
+        `/api/admin/students/${studentId}/enrollments/${enrollment.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ classStartTime, classEndTime, classDays }),
+        }
+      );
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        setSaved(true);
+        onSaved({ id: enrollment.id, classStartTime, classEndTime, classDays });
+      } else {
+        setErrors(data?.errors ?? {});
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="border-none bg-background shadow-none">
+      <CardContent className="flex flex-col gap-3 p-5">
+        <p className="text-sm font-semibold text-foreground">{enrollment.courseName}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`start-${enrollment.id}`}>Class Start Time</Label>
+            <Input
+              id={`start-${enrollment.id}`}
+              type="time"
+              value={classStartTime}
+              onChange={(e) => setClassStartTime(e.target.value)}
+            />
+            {errors.classStartTime && (
+              <p className="text-xs text-destructive">{errors.classStartTime}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`end-${enrollment.id}`}>Class End Time</Label>
+            <Input
+              id={`end-${enrollment.id}`}
+              type="time"
+              value={classEndTime}
+              onChange={(e) => setClassEndTime(e.target.value)}
+            />
+            {errors.classEndTime && (
+              <p className="text-xs text-destructive">{errors.classEndTime}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Class Days</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {CLASS_DAYS.map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleDay(day)}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  classDays.includes(day)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-input text-muted-foreground hover:bg-secondary/60"
+                }`}
+              >
+                {dayLabel(day)}
+              </button>
+            ))}
+          </div>
+          {errors.classDays && <p className="text-xs text-destructive">{errors.classDays}</p>}
+        </div>
+        <div className="flex items-center gap-3">
+          <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Schedule"}
+          </Button>
+          <span
+            className={`flex items-center gap-1.5 text-xs text-muted-foreground transition-opacity duration-300 ${
+              saved ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+            Saved
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

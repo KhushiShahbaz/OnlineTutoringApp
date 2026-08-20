@@ -1,22 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Receipt } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 type Invoice = {
   id: string;
+  invoiceNumber: string;
   description: string;
   amount: string;
+  amountPaid: string | null;
+  dueDate: string | null;
   date: string;
   status: string;
 };
 
-const STATUS_VARIANT = {
-  PAID: "default",
-  PENDING: "outline",
-  OVERDUE: "destructive",
-} as const;
+const STATUS_STYLE: Record<string, string> = {
+  PAID: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  OVERDUE: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  PARTIAL: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+};
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
@@ -33,69 +37,84 @@ export default function InvoicesPage() {
     };
   }, []);
 
+  const pendingCount = invoices?.filter((i) => i.status !== "PAID").length ?? 0;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your billing history and payment status.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your billing history and payment status.
+          </p>
+        </div>
+        {invoices && invoices.length > 0 && (
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            {pendingCount === 0
+              ? "All invoices paid"
+              : `${pendingCount} awaiting payment`}
+          </span>
+        )}
       </div>
 
-      <Card className="border-none bg-background shadow-none">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-6 py-3 font-medium">Description</th>
-                  <th className="px-6 py-3 font-medium">Amount</th>
-                  <th className="px-6 py-3 font-medium">Date</th>
-                  <th className="px-6 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {invoices === null && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-6 text-center text-muted-foreground">
-                      Loading...
-                    </td>
-                  </tr>
+      <div className="flex flex-col gap-3">
+        {invoices === null && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Loading...
+          </p>
+        )}
+        {invoices?.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+              <Receipt className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">No invoices yet.</p>
+            </CardContent>
+          </Card>
+        )}
+        {invoices?.map((invoice) => (
+          <Card
+            key={invoice.id}
+            className="border-none shadow-sm transition-shadow hover:shadow-md"
+          >
+            <CardContent className="flex flex-wrap items-center gap-4 p-5 sm:flex-nowrap">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                <Receipt className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {invoice.description}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {invoice.invoiceNumber} ·{" "}
+                  {new Date(invoice.date).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  {invoice.dueDate &&
+                    ` · Due ${new Date(invoice.dueDate).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}`}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-lg font-bold text-foreground">{invoice.amount}</p>
+                {invoice.status === "PARTIAL" && invoice.amountPaid && (
+                  <p className="text-xs text-muted-foreground">
+                    {invoice.amountPaid} paid
+                  </p>
                 )}
-                {invoices?.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-6 text-center text-muted-foreground">
-                      No invoices yet.
-                    </td>
-                  </tr>
-                )}
-                {invoices?.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {invoice.description}
-                    </td>
-                    <td className="px-6 py-4 text-foreground">
-                      {invoice.amount}
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {new Date(invoice.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge
-                        variant={
-                          STATUS_VARIANT[invoice.status as keyof typeof STATUS_VARIANT]
-                        }
-                      >
-                        {invoice.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[invoice.status] ?? "bg-secondary text-muted-foreground"}`}
+              >
+                {invoice.status}
+              </span>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

@@ -38,12 +38,17 @@ const EMPTY_FORM = {
   courseIds: [] as string[],
   teacherId: "",
   level: "BEGINNER",
+  phone: "",
+  whatsapp: "",
+  parentName: "",
+  parentContact: "",
+  monthlyFee: "",
 };
 
 const LEVEL_STYLES: Record<string, string> = {
-  BEGINNER: "border-amber-200 bg-amber-50 text-amber-700",
-  INTERMEDIATE: "border-blue-200 bg-blue-50 text-blue-700",
-  ADVANCED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  BEGINNER: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+  INTERMEDIATE: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
+  ADVANCED: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
 };
 
 function initials(name: string) {
@@ -310,6 +315,61 @@ export default function AdminStudentsPage() {
                   ))}
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <Input
+                    id="whatsapp"
+                    value={form.whatsapp}
+                    onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentName">Parent Name</Label>
+                  <Input
+                    id="parentName"
+                    value={form.parentName}
+                    onChange={(e) => setForm((f) => ({ ...f, parentName: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentContact">Parent Contact</Label>
+                  <Input
+                    id="parentContact"
+                    value={form.parentContact}
+                    onChange={(e) => setForm((f) => ({ ...f, parentContact: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="monthlyFee">Monthly Fee</Label>
+                <Input
+                  id="monthlyFee"
+                  placeholder="e.g. PKR 5,000"
+                  value={form.monthlyFee}
+                  onChange={(e) => setForm((f) => ({ ...f, monthlyFee: e.target.value }))}
+                />
+              </div>
+
+              {form.courseIds.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Each course&apos;s class schedule can be set from the student&apos;s
+                  detail page after saving.
+                </p>
+              )}
 
               {errors.form && (
                 <p className="text-xs text-destructive">{errors.form}</p>

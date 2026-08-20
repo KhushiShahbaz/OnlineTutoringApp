@@ -6,7 +6,7 @@ import {
   LinkedinIcon,
   YoutubeIcon,
 } from "@/components/icons/social";
-
+import { Phone, Mail, MapPin } from "lucide-react";
 const QUICK_LINKS = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
@@ -46,6 +46,39 @@ export function Footer() {
             Empowering students through quality education. Learn, grow, and
             achieve your dreams with us.
           </p>
+          <div className="mt-6 space-y-3 text-sm text-background/70">
+            <div className="flex items-start gap-2">
+              <Phone className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <a
+                href="tel:+923195459398"
+                className="transition hover:text-background hover:underline"
+              >
+                +92 319 5459398
+              </a>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <Mail className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <a
+                href="mailto:globalteachinghub1@gmail.com"
+                className="break-all transition hover:text-background hover:underline"
+              >
+                globalteachinghub1@gmail.com
+              </a>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <a
+                href="https://maps.google.com/?q=Lahore,Pakistan"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition hover:text-background hover:underline"
+              >
+                Lahore, Pakistan
+              </a>
+            </div>
+          </div>
           {/* <div className="mt-5 flex gap-3">
             {[FacebookIcon, InstagramIcon, YoutubeIcon, LinkedinIcon].map(
               (Icon, i) => (

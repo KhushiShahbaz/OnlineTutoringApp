@@ -9,13 +9,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FieldErrors } from "@/lib/validation";
 
-export function RegisterForm() {
+type Course = { id: string; name: string };
+
+const EMPTY_FORM = {
+  name: "",
+  email: "",
+  password: "",
+  phone: "",
+  whatsapp: "",
+  parentName: "",
+  parentContact: "",
+  courseIds: [] as string[],
+};
+
+export function RegisterForm({ courses }: { courses: Course[] }) {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  function toggleCourse(courseId: string) {
+    setForm((f) => ({
+      ...f,
+      courseIds: f.courseIds.includes(courseId)
+        ? f.courseIds.filter((id) => id !== courseId)
+        : [...f.courseIds, courseId],
+    }));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -116,6 +138,76 @@ export function RegisterForm() {
         </div>
         {errors.password && (
           <p className="text-xs text-destructive">{errors.password}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            className="h-11"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="whatsapp">WhatsApp</Label>
+          <Input
+            id="whatsapp"
+            value={form.whatsapp}
+            onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+            className="h-11"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="parentName">Parent Name</Label>
+          <Input
+            id="parentName"
+            value={form.parentName}
+            onChange={(e) => setForm((f) => ({ ...f, parentName: e.target.value }))}
+            className="h-11"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="parentContact">Parent Contact</Label>
+          <Input
+            id="parentContact"
+            value={form.parentContact}
+            onChange={(e) => setForm((f) => ({ ...f, parentContact: e.target.value }))}
+            className="h-11"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Courses</Label>
+        {courses.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            No courses are open for enrollment right now.
+          </p>
+        )}
+        <div className="flex flex-col gap-1.5">
+          {courses.map((course) => (
+            <label
+              key={course.id}
+              className="flex items-center gap-2 rounded-lg border border-input px-3 py-2 text-sm has-checked:border-primary has-checked:bg-primary/10"
+            >
+              <input
+                type="checkbox"
+                checked={form.courseIds.includes(course.id)}
+                onChange={() => toggleCourse(course.id)}
+                className="h-3.5 w-3.5 accent-primary"
+              />
+              {course.name}
+            </label>
+          ))}
+        </div>
+        {errors.courseIds && (
+          <p className="text-xs text-destructive">{errors.courseIds}</p>
         )}
       </div>
 

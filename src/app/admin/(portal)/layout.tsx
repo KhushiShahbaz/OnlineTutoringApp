@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, LayoutDashboard, Users, GraduationCap } from "lucide-react";
+import { BookOpen, LayoutDashboard, Users, GraduationCap, Receipt } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/dashboard/portal-shell";
 import { useSession } from "@/lib/use-session";
 
@@ -11,6 +11,7 @@ const ADMIN_NAV: PortalNavItem[] = [
   { label: "Students", href: "/admin/students", icon: Users },
   { label: "Teachers", href: "/admin/teachers", icon: GraduationCap },
   { label: "Courses", href: "/admin/courses", icon: BookOpen },
+  { label: "Invoices", href: "/admin/invoices", icon: Receipt },
 ];
 
 export default function AdminPortalLayout({

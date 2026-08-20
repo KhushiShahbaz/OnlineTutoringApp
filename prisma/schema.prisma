@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   ADMIN
   TEACHER
+  STAFF
   STUDENT
 }
 
@@ -28,15 +29,42 @@ enum InvoiceStatus {
   PAID
   PENDING
   OVERDUE
+  PARTIAL
+}
+
+enum ClassDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum NotificationType {
+  GENERAL
+  INVOICE_GENERATED
+  PAYMENT_REMINDER
+  WEEKLY_REPORT
+  MONTHLY_REPORT
+  ATTENDANCE_ALERT
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
   name         String
   role         Role
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime?
 
   teacher Teacher?
   student Student?
@@ -53,37 +81,63 @@ model Course {
   icon        String   @default("BookOpen")
   createdAt   DateTime @default(now())
 
-  teachers Teacher[]
-  students Student[]
+  teachers    Teacher[]
+  enrollments Enrollment[]
 }
 
 model Teacher {
-  id      String  @id @default(cuid())
-  userId  String  @unique
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id      String   @id @default(cuid())
+  userId  String   @unique
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   courses Course[]
 
   students Student[]
 }
 
 model Student {
-  id        String        @id @default(cuid())
-  userId    String?       @unique
-  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  name      String
-  email     String        @unique
-  phone     String?
-  courses   Course[]
-  teacherId String?
-  teacher   Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  level     StudentLevel  @default(BEGINNER)
-  progress  Int           @default(0)
-  status    StudentStatus @default(ACTIVE)
-  joined    DateTime      @default(now())
+  id            String        @id @default(cuid())
+  userId        String?       @unique
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name          String
+  email         String        @unique
+  phone         String?
+  whatsapp      String?
+  parentName    String?
+  parentContact String?
+  teacherId     String?
+  teacher       Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  level         StudentLevel  @default(BEGINNER)
+  progress      Int           @default(0)
+  status        StudentStatus @default(ACTIVE)
+  joined        DateTime      @default(now())
+  monthlyFee    String?
 
+  enrollments   Enrollment[]
   notes         ProgressNote[]
   invoices      Invoice[]
   notifications Notification[]
+  documents     Document[]
+}
+
+/**
+ * A student's enrollment in one course — carries that course's own class schedule, attendance, and reports.
+ */
+model Enrollment {
+  id             String     @id @default(cuid())
+  studentId      String
+  student        Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classStartTime String?
+  classEndTime   String?
+  classDays      ClassDay[]
+  createdAt      DateTime   @default(now())
+
+  attendance     Attendance[]
+  weeklyReports  WeeklyReport[]
+  monthlyReports MonthlyReport[]
+
+  @@unique([studentId, courseId])
 }
 
 model ProgressNote {
@@ -95,19 +149,80 @@ model ProgressNote {
 }
 
 model Invoice {
-  id          String        @id @default(cuid())
-  studentId   String
-  student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  description String
-  amount      String
-  date        DateTime      @default(now())
-  status      InvoiceStatus @default(PENDING)
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  description   String
+  amount        String
+  amountPaid    String?
+  dueDate       DateTime?
+  date          DateTime      @default(now())
+  status        InvoiceStatus @default(PENDING)
+}
+
+model Attendance {
+  id              String     @id @default(cuid())
+  enrollmentId    String
+  enrollment      Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  date            DateTime   @db.Date
+  present         Boolean
+  lessonRemarks   String?
+  homeworkRemarks String?
+  teacherComment  String?
+  createdAt       DateTime   @default(now())
+
+  @@unique([enrollmentId, date])
+}
+
+model WeeklyReport {
+  id             String     @id @default(cuid())
+  enrollmentId   String
+  enrollment     Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  weekStart      DateTime   @db.Date
+  weekEnd        DateTime   @db.Date
+  presentCount   Int
+  totalCount     Int
+  topicsCovered  String
+  teacherRemarks String?
+  sentEmail      Boolean    @default(false)
+  sentWhatsapp   Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+}
+
+model MonthlyReport {
+  id                 String     @id @default(cuid())
+  enrollmentId       String
+  enrollment         Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  month              Int
+  year               Int
+  attendancePercent  Float
+  performanceSummary String
+  teacherRemarks     String?
+  sentEmail          Boolean    @default(false)
+  sentWhatsapp       Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+
+  @@unique([enrollmentId, month, year])
+}
+
+model Document {
+  id        String         @id @default(cuid())
+  studentId String
+  student   Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title     String
+  docType   String
+  status    DocumentStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(GENERAL)
   message   String
-  date      DateTime @default(now())
+  date      DateTime         @default(now())
 }

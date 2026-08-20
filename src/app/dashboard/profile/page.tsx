@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { Calendar, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,16 @@ export default function ProfilePage() {
   return <ProfileForm student={student} />;
 }
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 function ProfileForm({ student }: { student: NonNullable<StudentMe> }) {
   const [name, setName] = useState(student.name);
   const [phone, setPhone] = useState(student.phone ?? "");
@@ -74,16 +85,37 @@ function ProfileForm({ student }: { student: NonNullable<StudentMe> }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          View and update your personal information.
-        </p>
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-teal-700 via-teal-600 to-emerald-700 p-8 text-white shadow-lg">
+        <div className="pointer-events-none absolute -top-16 -right-10 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+          <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/15 text-2xl font-bold ring-4 ring-white/20">
+            {initials(name || student.name)}
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold">{name || student.name}</h1>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-sm text-teal-50/90 sm:justify-start">
+              <span className="inline-flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" />
+                {student.email}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Student since {new Date(student.joined).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Card className="max-w-lg border-none bg-background shadow-none">
+      <Card className="max-w-lg border-none shadow-sm">
         <CardContent className="p-8">
-          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+          <h2 className="text-base font-semibold text-foreground">
+            Edit your details
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your name and phone number are visible to your teachers.
+          </p>
+          <form className="mt-5 flex flex-col gap-5" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -95,27 +127,13 @@ function ProfileForm({ student }: { student: NonNullable<StudentMe> }) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" defaultValue={student.email} disabled />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 name="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="joined">Student Since</Label>
-              <Input
-                id="joined"
-                name="joined"
-                defaultValue={new Date(student.joined).toLocaleDateString()}
-                disabled
+                placeholder="Add a phone number"
               />
             </div>
 

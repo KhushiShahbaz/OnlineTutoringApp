@@ -11,7 +11,7 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const students = await prisma.student.findMany({
-    include: { teacher: { include: { user: true } }, courses: true },
+    include: { teacher: { include: { user: true } }, enrollments: { include: { course: true } } },
     orderBy: { joined: "desc" },
   });
 
@@ -20,8 +20,8 @@ export async function GET() {
       id: s.id,
       name: s.name,
       email: s.email,
-      courseIds: s.courses.map((c) => c.id),
-      courseNames: s.courses.map((c) => c.name),
+      courseIds: s.enrollments.map((e) => e.courseId),
+      courseNames: s.enrollments.map((e) => e.course.name),
       teacherId: s.teacherId,
       teacherName: s.teacher?.user.name ?? null,
       level: s.level,
@@ -61,6 +61,14 @@ export async function POST(request: Request) {
   if (!["BEGINNER", "INTERMEDIATE", "ADVANCED"].includes(level)) {
     errors.level = "Select a valid level.";
   }
+
+  const phone = typeof data.phone === "string" ? data.phone.trim() || null : null;
+  const whatsapp = typeof data.whatsapp === "string" ? data.whatsapp.trim() || null : null;
+  const parentName = typeof data.parentName === "string" ? data.parentName.trim() || null : null;
+  const parentContact =
+    typeof data.parentContact === "string" ? data.parentContact.trim() || null : null;
+  const monthlyFee =
+    typeof data.monthlyFee === "string" ? data.monthlyFee.trim() || null : null;
 
   if (Object.keys(errors).length > 0) {
     return NextResponse.json({ errors }, { status: 422 });
@@ -105,7 +113,12 @@ export async function POST(request: Request) {
         create: {
           name,
           email,
-          courses: { connect: courseIds.map((id) => ({ id })) },
+          phone,
+          whatsapp,
+          parentName,
+          parentContact,
+          monthlyFee,
+          enrollments: { create: courseIds.map((courseId) => ({ courseId })) },
           teacherId,
           level: level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
           progress: 0,
@@ -113,11 +126,15 @@ export async function POST(request: Request) {
         },
       },
     },
-    include: { student: { include: { courses: true, teacher: { include: { user: true } } } } },
+    include: {
+      student: {
+        include: { enrollments: { include: { course: true } }, teacher: { include: { user: true } } },
+      },
+    },
   });
   const student = user.student!;
 
-  const courseNames = student.courses.map((c) => c.name);
+  const courseNames = student.enrollments.map((e) => e.course.name);
   const details = [
     ...(courseNames.length > 0
       ? [{ label: courseNames.length > 1 ? "Courses" : "Course", value: courseNames.join(", ") }]
@@ -139,7 +156,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     student: {
       ...student,
-      courseIds: student.courses.map((c) => c.id),
+      courseIds: student.enrollments.map((e) => e.courseId),
       courseNames,
     },
   });

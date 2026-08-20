@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (studentIds.length > 0) {
     const students = await prisma.student.findMany({
       where: { id: { in: studentIds } },
-      include: { courses: true },
+      include: { enrollments: true },
     });
     if (students.length !== studentIds.length) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const teacherCourseIds = new Set(teacher.courses.map((c) => c.id));
     const notEnrolled = students.filter(
-      (s) => !s.courses.some((c) => teacherCourseIds.has(c.id))
+      (s) => !s.enrollments.some((e) => teacherCourseIds.has(e.courseId))
     );
     if (notEnrolled.length > 0) {
       return NextResponse.json(

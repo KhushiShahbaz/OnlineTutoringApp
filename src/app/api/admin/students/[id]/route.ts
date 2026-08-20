@@ -13,7 +13,15 @@ export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
   const student = await prisma.student.findUnique({
     where: { id },
-    include: { notes: { orderBy: { date: "desc" } }, courses: true },
+    include: {
+      notes: { orderBy: { date: "desc" } },
+      enrollments: {
+        include: {
+          course: true,
+          attendance: { orderBy: { date: "desc" }, take: 30 },
+        },
+      },
+    },
   });
 
   if (!student) return notFound("Student not found.");
@@ -21,8 +29,17 @@ export async function GET(_request: Request, { params }: Params) {
   return NextResponse.json({
     student: {
       ...student,
-      courseIds: student.courses.map((c) => c.id),
-      courseNames: student.courses.map((c) => c.name),
+      courseIds: student.enrollments.map((e) => e.courseId),
+      courseNames: student.enrollments.map((e) => e.course.name),
+      enrollments: student.enrollments.map((e) => ({
+        id: e.id,
+        courseId: e.courseId,
+        courseName: e.course.name,
+        classStartTime: e.classStartTime,
+        classEndTime: e.classEndTime,
+        classDays: e.classDays,
+        attendance: e.attendance,
+      })),
     },
   });
 }
@@ -34,7 +51,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
   const existing = await prisma.student.findUnique({
     where: { id },
-    include: { courses: true },
+    include: { enrollments: true },
   });
   if (!existing) return notFound("Student not found.");
 
@@ -60,6 +77,28 @@ export async function PATCH(request: Request, { params }: Params) {
   const progress =
     typeof data.progress === "number" ? Math.max(0, Math.min(100, data.progress)) : existing.progress;
 
+  const phone = typeof data.phone === "string" ? data.phone.trim() || null : existing.phone;
+  const whatsapp =
+    typeof data.whatsapp === "string" ? data.whatsapp.trim() || null : existing.whatsapp;
+  const parentName =
+    typeof data.parentName === "string" ? data.parentName.trim() || null : existing.parentName;
+  const parentContact =
+    typeof data.parentContact === "string"
+      ? data.parentContact.trim() || null
+      : existing.parentContact;
+  const monthlyFee =
+    typeof data.monthlyFee === "string" ? data.monthlyFee.trim() || null : existing.monthlyFee;
+
+  let joined = existing.joined;
+  if (typeof data.joined === "string" && data.joined) {
+    const parsed = new Date(data.joined);
+    if (Number.isNaN(parsed.getTime())) {
+      errors.joined = "Enter a valid joining date.";
+    } else {
+      joined = parsed;
+    }
+  }
+
   if (!name) errors.name = "Full name is required.";
   if (!email) errors.email = "Email is required.";
   if (!["BEGINNER", "INTERMEDIATE", "ADVANCED"].includes(level)) {
@@ -76,7 +115,7 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   if (Object.keys(errors).length === 0) {
-    const effectiveCourseIds = courseIds ?? existing.courses.map((c) => c.id);
+    const effectiveCourseIds = courseIds ?? existing.enrollments.map((e) => e.courseId);
     const teacherError = await checkTeacherTeachesStudentCourse(teacherId, effectiveCourseIds);
     if (teacherError) errors.teacherId = teacherError;
   }
@@ -85,7 +124,7 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  const student = await prisma.student.update({
+  await prisma.student.update({
     where: { id },
     data: {
       name,
@@ -94,18 +133,44 @@ export async function PATCH(request: Request, { params }: Params) {
       level: level as "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
       status: status as "ACTIVE" | "INACTIVE",
       progress,
-      ...(courseIds !== undefined
-        ? { courses: { set: courseIds.map((cid) => ({ id: cid })) } }
-        : {}),
+      phone,
+      whatsapp,
+      parentName,
+      parentContact,
+      monthlyFee,
+      joined,
     },
-    include: { courses: true },
+  });
+
+  if (courseIds !== undefined) {
+    const currentCourseIds = existing.enrollments.map((e) => e.courseId);
+    const toAdd = courseIds.filter((cid) => !currentCourseIds.includes(cid));
+    const toRemove = existing.enrollments.filter((e) => !courseIds.includes(e.courseId));
+
+    await prisma.$transaction([
+      ...(toRemove.length > 0
+        ? [prisma.enrollment.deleteMany({ where: { id: { in: toRemove.map((e) => e.id) } } })]
+        : []),
+      ...(toAdd.length > 0
+        ? [
+            prisma.enrollment.createMany({
+              data: toAdd.map((courseId) => ({ studentId: id, courseId })),
+            }),
+          ]
+        : []),
+    ]);
+  }
+
+  const student = await prisma.student.findUniqueOrThrow({
+    where: { id },
+    include: { enrollments: { include: { course: true } } },
   });
 
   return NextResponse.json({
     student: {
       ...student,
-      courseIds: student.courses.map((c) => c.id),
-      courseNames: student.courses.map((c) => c.name),
+      courseIds: student.enrollments.map((e) => e.courseId),
+      courseNames: student.enrollments.map((e) => e.course.name),
     },
   });
 }
@@ -118,9 +183,10 @@ export async function DELETE(_request: Request, { params }: Params) {
   const existing = await prisma.student.findUnique({ where: { id } });
   if (!existing) return notFound("Student not found.");
 
-  // Notes, invoices, and notifications cascade with the Student row
-  // (see schema.prisma). Delete first, then remove any linked login
-  // account separately, since that relation only nulls out on delete.
+  // Notes, invoices, notifications, and enrollments (with their attendance/
+  // reports) cascade with the Student row (see schema.prisma). Delete
+  // first, then remove any linked login account separately, since that
+  // relation only nulls out on delete.
   await prisma.student.delete({ where: { id } });
   if (existing.userId) {
     await prisma.user.delete({ where: { id: existing.userId } });

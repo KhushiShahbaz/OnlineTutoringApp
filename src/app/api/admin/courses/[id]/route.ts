@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
   const course = await prisma.course.findUnique({
     where: { id },
-    include: { _count: { select: { students: true, teachers: true } } },
+    include: { _count: { select: { enrollments: true, teachers: true } } },
   });
 
   if (!course) return notFound("Course not found.");
@@ -28,7 +28,7 @@ export async function GET(_request: Request, { params }: Params) {
       topics: course.topics,
       color: course.color,
       icon: course.icon,
-      studentCount: course._count.students,
+      studentCount: course._count.enrollments,
       teacherCount: course._count.teachers,
     },
   });
@@ -75,7 +75,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const course = await prisma.course.update({
     where: { id },
     data: { name, summary, description, color, icon, topics },
-    include: { _count: { select: { students: true, teachers: true } } },
+    include: { _count: { select: { enrollments: true, teachers: true } } },
   });
 
   return NextResponse.json({
@@ -88,7 +88,7 @@ export async function PATCH(request: Request, { params }: Params) {
       topics: course.topics,
       color: course.color,
       icon: course.icon,
-      studentCount: course._count.students,
+      studentCount: course._count.enrollments,
       teacherCount: course._count.teachers,
     },
   });
@@ -101,7 +101,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params;
   const existing = await prisma.course.findUnique({
     where: { id },
-    include: { _count: { select: { teachers: true } } },
+    include: { _count: { select: { teachers: true, enrollments: true } } },
   });
   if (!existing) return notFound("Course not found.");
 
@@ -115,9 +115,16 @@ export async function DELETE(_request: Request, { params }: Params) {
     );
   }
 
-  // Any students enrolled in this course are simply unenrolled from it
-  // (the implicit join table row is cascade-deleted); their other
-  // enrollments and records are untouched.
+  if (existing._count.enrollments > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Students are still enrolled in this course. Unenroll them first — deleting a course also deletes its enrollment attendance and reports.",
+      },
+      { status: 409 }
+    );
+  }
+
   await prisma.course.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });

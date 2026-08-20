@@ -99,7 +99,20 @@ async function main() {
           name: "Ali Raza",
           email: "ali.raza@example.com",
           phone: "+92 300 1234567",
-          courses: { connect: [{ id: quran.id }] },
+          whatsapp: "+92 300 1234567",
+          parentName: "Muhammad Raza",
+          parentContact: "+92 300 7654321",
+          monthlyFee: "PKR 5,000",
+          enrollments: {
+            create: [
+              {
+                courseId: quran.id,
+                classStartTime: "17:00",
+                classEndTime: "18:00",
+                classDays: ["TUESDAY", "THURSDAY"],
+              },
+            ],
+          },
           teacherId: hafsaTeacherId,
           level: "INTERMEDIATE",
           progress: 65,
@@ -113,14 +126,17 @@ async function main() {
           invoices: {
             create: [
               {
+                invoiceNumber: "INV-2026-0001",
                 description: "Quran with Tajweed — August",
                 amount: "PKR 5,000",
                 status: "PAID",
               },
               {
+                invoiceNumber: "INV-2026-0002",
                 description: "Quran with Tajweed — September",
                 amount: "PKR 5,000",
                 status: "PENDING",
+                dueDate: new Date("2026-09-01"),
               },
             ],
           },
@@ -142,7 +158,7 @@ async function main() {
     create: {
       name: "Mahnoor Ali",
       email: "mahnoor.ali@example.com",
-      courses: { connect: [{ id: quran.id }, { id: computer.id }] },
+      enrollments: { create: [{ courseId: quran.id }, { courseId: computer.id }] },
       teacherId: hafsaTeacherId,
       level: "BEGINNER",
       progress: 30,
@@ -156,7 +172,7 @@ async function main() {
     create: {
       name: "Hassan Raza",
       email: "hassan.raza@example.com",
-      courses: { connect: [{ id: computer.id }] },
+      enrollments: { create: [{ courseId: computer.id }] },
       teacherId: bilalTeacherId,
       level: "ADVANCED",
       progress: 85,
@@ -171,7 +187,7 @@ async function main() {
     create: {
       name: "Areeba Khan",
       email: "areeba.khan@example.com",
-      courses: { connect: [{ id: computer.id }] },
+      enrollments: { create: [{ courseId: computer.id }] },
       teacherId: null,
       level: "BEGINNER",
       progress: 10,

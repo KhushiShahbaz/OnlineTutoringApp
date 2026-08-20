@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AttendancePanel, type AttendanceRecord } from "@/components/dashboard/attendance-panel";
+import {
+  ReportsPanel,
+  type WeeklyReport,
+  type MonthlyReport,
+} from "@/components/dashboard/reports-panel";
 
 type Note = { id: string; note: string; date: string };
+type EnrollmentDetail = {
+  id: string;
+  courseId: string;
+  courseName: string;
+  attendance: AttendanceRecord[];
+};
 type StudentDetail = {
   id: string;
   name: string;
@@ -16,19 +28,26 @@ type StudentDetail = {
   level: string;
   progress: number;
   notes: Note[];
+  enrollments: EnrollmentDetail[];
 };
 
 export default function TeacherStudentProgressPage() {
   const { id } = useParams<{ id: string }>();
   const [student, setStudent] = useState<StudentDetail | null | undefined>(undefined);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/teacher/students/${id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (active) setStudent(data?.student ?? null);
-      });
+    Promise.all([
+      fetch(`/api/teacher/students/${id}`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`/api/teacher/students/${id}/reports`).then((r) => (r.ok ? r.json() : null)),
+    ]).then(([studentData, reportsData]) => {
+      if (!active) return;
+      setStudent(studentData?.student ?? null);
+      setWeeklyReports(reportsData?.weeklyReports ?? []);
+      setMonthlyReports(reportsData?.monthlyReports ?? []);
+    });
     return () => {
       active = false;
     };
@@ -54,10 +73,24 @@ export default function TeacherStudentProgressPage() {
     );
   }
 
-  return <ProgressEditor student={student} />;
+  return (
+    <ProgressEditor
+      student={student}
+      weeklyReports={weeklyReports}
+      monthlyReports={monthlyReports}
+    />
+  );
 }
 
-function ProgressEditor({ student }: { student: StudentDetail }) {
+function ProgressEditor({
+  student,
+  weeklyReports,
+  monthlyReports,
+}: {
+  student: StudentDetail;
+  weeklyReports: WeeklyReport[];
+  monthlyReports: MonthlyReport[];
+}) {
   const [level, setLevel] = useState(student.level);
   const [progress, setProgress] = useState(student.progress);
   const [notes, setNotes] = useState(student.notes);
@@ -183,6 +216,22 @@ function ProgressEditor({ student }: { student: StudentDetail }) {
           </Button>
         </form>
       </div>
+
+      <AttendancePanel
+        apiBase={`/api/teacher/students/${student.id}`}
+        enrollments={student.enrollments.map((e) => ({
+          id: e.id,
+          courseName: e.courseName,
+          attendance: e.attendance,
+        }))}
+      />
+
+      <ReportsPanel
+        apiBase={`/api/teacher/students/${student.id}`}
+        enrollments={student.enrollments.map((e) => ({ id: e.id, courseName: e.courseName }))}
+        initialWeekly={weeklyReports}
+        initialMonthly={monthlyReports}
+      />
     </div>
   );
 }
